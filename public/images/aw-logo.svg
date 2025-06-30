@@ -1,0 +1,23 @@
+<svg 
+ xmlns="http://www.w3.org/2000/svg"
+ xmlns:xlink="http://www.w3.org/1999/xlink"
+ width="865px" height="865px">
+<defs>
+<linearGradient id="PSgrad_0" x1="0%" x2="58.779%" y1="80.902%" y2="0%">
+  <stop offset="1%" stop-color="rgb(162,0,255)" stop-opacity="1" />
+  <stop offset="46%" stop-color="rgb(209,39,128)" stop-opacity="1" />
+  <stop offset="86%" stop-color="rgb(255,78,0)" stop-opacity="1" />
+</linearGradient>
+
+</defs>
+<path fill-rule="evenodd"  stroke="rgb(0, 0, 0)" stroke-width="0px" stroke-linecap="round" stroke-linejoin="round" fill="url(#PSgrad_0)"
+ d="M432.500,-0.000 C671.363,-0.000 865.000,193.637 865.000,432.500 C865.000,671.363 671.363,865.000 432.500,865.000 C193.637,865.000 -0.000,671.363 -0.000,432.500 C-0.000,193.637 193.637,-0.000 432.500,-0.000 Z"/>
+<path fill-rule="evenodd"  stroke="rgb(0, 0, 0)" stroke-width="0px" stroke-linecap="round" stroke-linejoin="round" fill="rgb(255, 255, 255)"
+ d="M574.741,391.561 C604.904,411.847 604.767,456.275 574.480,476.375 L350.228,625.197 C316.269,647.733 270.902,623.302 271.028,582.546 L271.946,283.527 C272.071,242.771 317.588,218.620 351.407,241.364 L574.741,391.561 Z"/>
+<path fill-rule="evenodd"  stroke="rgb(0, 0, 0)" stroke-width="0px" stroke-linecap="round" stroke-linejoin="round" fill="rgb(255, 255, 255)"
+ d="M582.500,542.1000 C591.060,542.1000 598.000,549.940 598.000,558.500 L598.000,620.500 C598.000,629.060 591.060,636.000 582.500,636.000 C573.940,636.000 566.1000,629.060 566.1000,620.500 L566.1000,558.500 C566.1000,549.940 573.940,542.1000 582.500,542.1000 Z"/>
+<path fill-rule="evenodd"  stroke="rgb(0, 0, 0)" stroke-width="0px" stroke-linecap="round" stroke-linejoin="round" fill="rgb(255, 255, 255)"
+ d="M696.500,636.000 C687.940,636.000 680.1000,629.060 680.1000,620.500 L680.1000,521.500 C680.1000,512.940 687.940,505.1000 696.500,505.1000 C705.060,505.1000 712.000,512.940 712.000,521.500 L712.000,620.500 C712.000,629.060 705.060,636.000 696.500,636.000 Z"/>
+<path fill-rule="evenodd"  stroke="rgb(0, 0, 0)" stroke-width="0px" stroke-linecap="round" stroke-linejoin="round" fill="rgb(255, 255, 255)"
+ d="M639.500,455.1000 C648.060,455.1000 655.000,462.940 655.000,471.500 L655.000,620.500 C655.000,629.060 648.060,636.000 639.500,636.000 C630.940,636.000 623.1000,629.060 623.1000,620.500 L623.1000,471.500 C623.1000,462.940 630.940,455.1000 639.500,455.1000 Z"/>
+</svg>

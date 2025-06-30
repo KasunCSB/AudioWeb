@@ -3,15 +3,13 @@
   <h1>AudioWeb</h1>
 </div>
 
-
-
-A modern, feature-rich web-based audio player built with Next.js, React, and TypeScript. AudioWeb provides a seamless music listening experience with advanced features like shuffle, repeat modes, equalizer, sleep timer, and synchronized lyrics display.
-
 ![AudioWeb](https://img.shields.io/badge/AudioWeb-v1.55-blue)
 ![Next.js](https://img.shields.io/badge/Next.js-15.3.4-black)
 ![React](https://img.shields.io/badge/React-19.0.0-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4.x-38bdf8)
+
+A modern, feature-rich web-based audio player built with Next.js, React, and TypeScript. AudioWeb provides a seamless music listening experience with advanced features like shuffle, repeat modes, equalizer, sleep timer, and synchronized lyrics display.
 
 ## ✨ Features
 
@@ -182,9 +180,3 @@ If you encounter any issues or have questions:
 - Open an issue on GitHub
 - Check the documentation
 - Join our community discussions
-
----
-
-<div align="center">
-  <strong>Built with ❤️ using Next.js and React</strong>
-</div>

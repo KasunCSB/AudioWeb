@@ -3,6 +3,8 @@
   <h1>AudioWeb</h1>
 </div>
 
+
+
 A modern, feature-rich web-based audio player built with Next.js, React, and TypeScript. AudioWeb provides a seamless music listening experience with advanced features like shuffle, repeat modes, equalizer, sleep timer, and synchronized lyrics display.
 
 ![AudioWeb](https://img.shields.io/badge/AudioWeb-v1.55-blue)

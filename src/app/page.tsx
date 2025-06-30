@@ -76,7 +76,7 @@ const Header = ({ onPlayClick }: { onPlayClick: () => void }) => (
       <span className="inline-block text-red-400 transition-transform duration-200 hover:scale-125">
         ❤️
       </span>{" "}
-      from Sri Lanka
+      using Next.js
     </div>
   </section>
 );

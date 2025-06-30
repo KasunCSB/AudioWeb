@@ -1,6 +1,6 @@
 <div align="center">
   <img src="public/images/aw-logo.svg" alt="AudioWeb Logo" width="150" height="150">
-  <h1>AudioWeb</h1>
+  <h1>AudioWeb Music Player</h1>
 </div>
 
 ![AudioWeb](https://img.shields.io/badge/AudioWeb-v1.55-blue)

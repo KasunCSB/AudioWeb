@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AudioWeb Music Player",
+  title: "AudioWeb Music Player - Play Audio Files Online",
   description: "A modern web-based music player for playing your favorite audio files directly in your browser. Supports multiple audio formats with an intuitive interface.",
-  keywords: ["music player", "web audio player", "audio player", "music streaming", "browser music player"],
+  keywords: ["music player", "web audio player", "audio player", "music streaming", "browser music player", "online music player", "mp3 player"],
   authors: [{ name: "Kasun Chanaka" }],
   creator: "Kasun Chanaka",
   publisher: "Kasun Chanaka",
@@ -36,11 +36,13 @@ export const metadata: Metadata = {
     title: "AudioWeb Music Player",
     description: "A modern web-based music player for playing your favorite audio files directly in your browser.",
     siteName: "AudioWeb",
+    url: "https://audioweb.vercel.app",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -50,6 +52,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="canonical" href="https://audioweb.vercel.app" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.className} antialiased`}
       >

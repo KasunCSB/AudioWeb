@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,8 +17,30 @@ const geistMono = Geist_Mono({
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AudioWeb",
-  description: "Play music on the web!",
+  title: "AudioWeb Music Player",
+  description: "A modern web-based music player for playing your favorite audio files directly in your browser. Supports multiple audio formats with an intuitive interface.",
+  keywords: ["music player", "web audio player", "audio player", "music streaming", "browser music player"],
+  authors: [{ name: "Kasun Chanaka" }],
+  creator: "Kasun Chanaka",
+  publisher: "Kasun Chanaka",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+  openGraph: {
+    type: "website",
+    title: "AudioWeb Music Player",
+    description: "A modern web-based music player for playing your favorite audio files directly in your browser.",
+    siteName: "AudioWeb",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+  },
 };
 
 export default function RootLayout({
@@ -32,6 +55,7 @@ export default function RootLayout({
       >
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

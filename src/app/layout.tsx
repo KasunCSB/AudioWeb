@@ -37,6 +37,20 @@ export const metadata: Metadata = {
     description: "A modern web-based music player for playing your favorite audio files directly in your browser.",
     siteName: "AudioWeb",
     url: "https://audioweb.vercel.app",
+    images: [
+      {
+        url: "https://audioweb.vercel.app/images/aw-logo.svg",
+        width: 1200,
+        height: 630,
+        alt: "AudioWeb Music Player Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AudioWeb Music Player",
+    description: "A modern web-based music player for playing your favorite audio files directly in your browser.",
+    images: ["https://audioweb.vercel.app/images/aw-logo.svg"],
   },
 };
 

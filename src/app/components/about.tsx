@@ -110,7 +110,7 @@ export const AboutPopup: React.FC<AboutPopupProps> = ({ show, onClose, isPlaying
       onClick={handleBackdropClick}
     >
       <div 
-        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl p-6"
+        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar rounded-3xl p-6"
         style={{
           background: 'rgba(20, 20, 28, 0.95)',
           backdropFilter: 'blur(20px)',

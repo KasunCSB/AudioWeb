@@ -31,115 +31,77 @@ export const PlayerStyles = () => (
       scroll-behavior: smooth;
     }
 
-    /* Default Custom Scrollbar for the whole page */
+    /* Global scrollbar hiding - completely invisible by default */
     * {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
 
     *::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+      display: none;
     }
 
-    *::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 3px;
+    /* Apply hidden scrollbars to html and body specifically */
+    html, body {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
 
-    *::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 3px;
-      transition: background 0.2s ease;
+    html::-webkit-scrollbar, body::-webkit-scrollbar {
+      display: none;
     }
 
-    *::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.3);
+    /* Additional common elements that might scroll */
+    div, section, main, article, aside, nav, ul, ol, li, pre, code {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
 
-    *::-webkit-scrollbar-corner {
-      background: transparent;
+    div::-webkit-scrollbar, 
+    section::-webkit-scrollbar, 
+    main::-webkit-scrollbar, 
+    article::-webkit-scrollbar, 
+    aside::-webkit-scrollbar, 
+    nav::-webkit-scrollbar, 
+    ul::-webkit-scrollbar, 
+    ol::-webkit-scrollbar, 
+    li::-webkit-scrollbar, 
+    pre::-webkit-scrollbar, 
+    code::-webkit-scrollbar {
+      display: none;
     }
 
-    /* Standard Custom Scrollbar */
+    /* Standard Custom Scrollbar - completely invisible */
     .custom-scrollbar {
       overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.05);
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
 
     .custom-scrollbar::-webkit-scrollbar {
-      width: 6px;
+      display: none;
     }
 
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 3px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 3px;
-      transition: background 0.2s ease;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.4);
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-corner {
-      background: transparent;
-    }
-
-    /* Enhanced Custom Scrollbar */
+    /* Enhanced Custom Scrollbar - completely invisible */
     .custom-scrollbar-enhanced {
       overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.1);
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
 
     .custom-scrollbar-enhanced::-webkit-scrollbar {
-      width: 8px;
+      display: none;
     }
 
-    .custom-scrollbar-enhanced::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 4px;
-    }
-
-    .custom-scrollbar-enhanced::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.25);
-      border-radius: 4px;
-      transition: background 0.2s ease;
-    }
-
-    .custom-scrollbar-enhanced::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.5);
-    }
-
-    /* Thin Custom Scrollbar */
+    /* Thin Custom Scrollbar - completely invisible */
     .custom-scrollbar-thin {
       overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
 
     .custom-scrollbar-thin::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    .custom-scrollbar-thin::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    .custom-scrollbar-thin::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 2px;
-      transition: background 0.2s ease;
-    }
-
-    .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.3);
+      display: none;
     }
 
     /* Invisible Scrollbar (still functional) */
@@ -153,43 +115,15 @@ export const PlayerStyles = () => (
       display: none;
     }
 
-    /* Auto-hide Scrollbar */
+    /* Auto-hide Scrollbar - completely invisible */
     .custom-scrollbar-auto {
       overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: transparent transparent;
-      transition: scrollbar-color 0.3s ease;
-    }
-
-    .custom-scrollbar-auto:hover {
-      scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.05);
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
 
     .custom-scrollbar-auto::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    .custom-scrollbar-auto::-webkit-scrollbar-track {
-      background: transparent;
-      transition: background 0.3s ease;
-    }
-
-    .custom-scrollbar-auto::-webkit-scrollbar-thumb {
-      background: transparent;
-      border-radius: 3px;
-      transition: background 0.3s ease;
-    }
-
-    .custom-scrollbar-auto:hover::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .custom-scrollbar-auto:hover::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-    }
-
-    .custom-scrollbar-auto:hover::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.4);
+      display: none;
     }
 
     /* Ensure proper touch scrolling on mobile */
@@ -201,14 +135,20 @@ export const PlayerStyles = () => (
       -webkit-overflow-scrolling: touch;
     }
 
-    /* Fix scrolling in flex containers */
+    /* Fix scrolling in flex containers - completely invisible scrollbar */
     .scroll-container {
       overflow-y: auto;
       min-height: 0;
       flex: 1;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
 
-    /* Popup content scrolling */
+    .scroll-container::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Popup content scrolling - completely invisible scrollbar */
     .popup-content {
       display: flex;
       flex-direction: column;
@@ -220,6 +160,12 @@ export const PlayerStyles = () => (
       flex: 1;
       overflow-y: auto;
       min-height: 0;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .popup-content > .scroll-content::-webkit-scrollbar {
+      display: none;
     }
 
     /* Page level smooth scrolling */

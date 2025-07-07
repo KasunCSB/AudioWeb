@@ -37,6 +37,7 @@ export const ResizablePopup: React.FC<ResizablePopupProps> = ({
   const [isResizing, setIsResizing] = useState<string | null>(null);
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const popupRef = useRef<HTMLDivElement>(null);
+  const scrollContentRef = useRef<HTMLDivElement>(null);
 
   // Check for mobile screen size
   useEffect(() => {
@@ -154,7 +155,7 @@ export const ResizablePopup: React.FC<ResizablePopupProps> = ({
               </svg>
             </button>
           </div>
-          <div className="scroll-content custom-scrollbar">
+          <div className="scroll-content custom-scrollbar" ref={scrollContentRef}>
             {children}
           </div>
         </div>

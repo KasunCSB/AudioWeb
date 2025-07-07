@@ -373,7 +373,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
         <div className="hidden md:flex w-full max-w-[1400px] gap-4 lg:gap-8 px-4 lg:px-8 pt-2">
           
           {/* Left Section - Player Controls */}
-          <div className="w-72 lg:w-80 xl:w-96 flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-120px)] overflow-hidden">
+          <div className="w-72 lg:w-80 xl:w-96 flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar-auto">
             <div 
               className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-6 mb-3 lg:mb-4 flex-shrink-0"
               style={{

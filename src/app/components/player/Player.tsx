@@ -475,9 +475,15 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                         </svg>
                       </button>
                       {currentTrackIndex < playlist.length - 1 && (
-                        <svg className="w-4 h-4 lg:w-5 lg:h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                        <button
+                          onClick={() => selectTrack(currentTrackIndex + 1)}
+                          className="w-6 h-6 lg:w-7 lg:h-7 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all duration-200 group"
+                          title="Play next track"
+                        >
+                          <svg className="w-3 h-3 lg:w-4 lg:h-4 text-white/60 group-hover:text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -651,9 +657,15 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                           </svg>
                         </button>
                         {currentTrackIndex < playlist.length - 1 && (
-                          <svg className="w-4 h-4 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
+                          <button
+                            onClick={() => selectTrack(currentTrackIndex + 1)}
+                            className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all duration-200 group"
+                            title="Play next track"
+                          >
+                            <svg className="w-3 h-3 text-white/60 group-hover:text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
                         )}
                       </div>
                     </div>

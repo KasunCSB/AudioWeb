@@ -375,7 +375,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
           {/* Left Section - Player Controls */}
           <div className="w-72 lg:w-80 xl:w-96 flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar-auto">
             <div 
-              className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-6 mb-3 lg:mb-4 flex-shrink-0"
+              className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-6 flex-shrink-0"
               style={{
                 background: 'rgba(255, 255, 255, 0.05)',
                 backdropFilter: 'blur(20px)',
@@ -429,87 +429,6 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                 </div>
               )}
             </div>
-
-            {/* Up Next Section */}
-            {playlist.length > 0 && (
-              <div 
-                className="rounded-[16px] lg:rounded-[20px] p-3 lg:p-4 cursor-pointer transition-all duration-200 hover:bg-white/5 flex-1 min-h-0 overflow-y-auto custom-scrollbar-enhanced"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  backdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
-                }}
-              >
-                <h3 className="text-xs lg:text-sm font-semibold text-white/80 mb-2 lg:mb-3 flex items-center justify-between sticky top-0 bg-inherit z-10">
-                  <span>Up Next</span>
-                  <div className="flex items-center gap-1 lg:gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        fileInputRef.current?.click();
-                      }}
-                      className="p-1 lg:p-1.5 rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all duration-200"
-                      title="Add More Songs"
-                    >
-                      <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowPlaylist(true);
-                      }}
-                      className="p-1 lg:p-1.5 rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all duration-200"
-                      title="View Playlist"
-                    >
-                      <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </h3>
-                <div className="space-y-2">
-                  {currentTrackIndex < playlist.length - 1 ? (
-                    playlist.slice(currentTrackIndex + 1).map((track, index) => (
-                      <div 
-                        key={`${track.title}-${currentTrackIndex + 1 + index}`}
-                        className="flex items-center gap-2 lg:gap-3 p-1.5 lg:p-2 rounded-xl hover:bg-white/5 transition-all duration-200 cursor-pointer"
-                        onClick={() => selectTrack(currentTrackIndex + 1 + index)}
-                      >
-                        <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg overflow-hidden flex-shrink-0">
-                          {track.albumArt ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img 
-                              src={track.albumArt} 
-                              alt="Album art" 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                              <svg className="w-3 h-3 lg:w-4 lg:h-4 text-white/60" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.814L4.5 13.93A1 1 0 014 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2a1 1 0 01.5-.069l3.883-2.884a1 1 0 011 0z"/>
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs lg:text-sm font-medium text-white truncate">
-                            {track.title}
-                          </p>
-                          <p className="text-xs text-white/60 truncate">
-                            {track.artist}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-xs lg:text-sm text-white/60 text-center py-4">No more tracks</p>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Right Section - Lyrics Area */}
@@ -545,11 +464,22 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                     <h3 className="text-sm lg:text-base font-semibold text-white/80">
                       Up Next {/* Debug: Playlist length: {playlist.length}, Current: {currentTrackIndex} */}
                     </h3>
-                    {currentTrackIndex < playlist.length - 1 && (
-                      <svg className="w-4 h-4 lg:w-5 lg:h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-6 h-6 lg:w-7 lg:h-7 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all duration-200 group"
+                        title="Add more tracks"
+                      >
+                        <svg className="w-3 h-3 lg:w-4 lg:h-4 text-white/60 group-hover:text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                      {currentTrackIndex < playlist.length - 1 && (
+                        <svg className="w-4 h-4 lg:w-5 lg:h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      )}
+                    </div>
                   </div>
                   {currentTrackIndex < playlist.length - 1 ? (
                     <div 
@@ -596,7 +526,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
 
         {/* Mobile and Small Tablet Layout */}
         <div className="md:hidden w-full h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar-auto">
-          <div className="px-3 sm:px-4 pt-2 pb-safe space-y-3 sm:space-y-4">
+          <div className="px-3 sm:px-4 pt-2 pb-6 space-y-3 sm:space-y-4">
             {/* Album Art or Upload Area */}
             <div className="flex justify-center">
               <div className="w-full max-w-sm">
@@ -710,11 +640,22 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                   >
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-xs sm:text-sm font-semibold text-white/80">Up Next</h3>
-                      {currentTrackIndex < playlist.length - 1 && (
-                        <svg className="w-4 h-4 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all duration-200 group"
+                          title="Add more tracks"
+                        >
+                          <svg className="w-3 h-3 text-white/60 group-hover:text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                        {currentTrackIndex < playlist.length - 1 && (
+                          <svg className="w-4 h-4 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        )}
+                      </div>
                     </div>
                     {currentTrackIndex < playlist.length - 1 ? (
                       <div 

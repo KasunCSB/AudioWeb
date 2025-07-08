@@ -209,7 +209,20 @@ export const useFileHandler = (
     }
 
     setPlaylist(prev => {
-      const updated = [...prev, ...newTracks];
+      // Filter out duplicates based on file name and size
+      const filteredTracks = newTracks.filter(newTrack => {
+        return !prev.some(existingTrack => 
+          existingTrack.file.name === newTrack.file.name && 
+          existingTrack.file.size === newTrack.file.size
+        );
+      });
+      
+      const duplicateCount = newTracks.length - filteredTracks.length;
+      if (duplicateCount > 0) {
+        console.log(`Skipped ${duplicateCount} duplicate track${duplicateCount > 1 ? 's' : ''}`);
+      }
+      
+      const updated = [...prev, ...filteredTracks];
       if (prev.length === 0 && updated.length > 0) {
         updated[0].isActive = true;
       }

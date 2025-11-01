@@ -1,6 +1,24 @@
 {
   "name": "audioweb",
-  "version": "0.1.0",
+  "version": "2.1.0",
+  "description": "A modern, feature-rich web-based audio player built with Next.js, React, and TypeScript",
+  "author": "KasunCSB",
+  "homepage": "https://audioweb.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KasunCSB/AudioWeb.git"
+  },
+  "keywords": [
+    "audio-player",
+    "music-player",
+    "nextjs",
+    "react",
+    "typescript",
+    "web-audio",
+    "equalizer",
+    "lyrics",
+    "playlist"
+  ],
   "private": true,
   "scripts": {
     "dev": "next dev",

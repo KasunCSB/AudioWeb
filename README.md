@@ -3,8 +3,8 @@
   <h1>AudioWeb Music Player</h1>
 </div>
 
-![AudioWeb](https://img.shields.io/badge/AudioWeb-v1.55-blue)
-![Next.js](https://img.shields.io/badge/Next.js-15.3.4-black)
+![AudioWeb](https://img.shields.io/badge/AudioWeb-v2.1.0-blue)
+![Next.js](https://img.shields.io/badge/Next.js-16.0.1-black)
 ![React](https://img.shields.io/badge/React-19.0.0-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4.x-38bdf8)
@@ -103,7 +103,7 @@ audioweb/
 
 ## 🛠️ Built With
 
-- **[Next.js 15](https://nextjs.org/)** - React framework for production
+- **[Next.js 16](https://nextjs.org/)** - React framework for production
 - **[React 19](https://reactjs.org/)** - UI library
 - **[TypeScript](https://www.typescriptlang.org/)** - Type-safe JavaScript
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework

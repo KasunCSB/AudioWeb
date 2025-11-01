@@ -1,0 +1,46 @@
+{
+  "name": "AudioWeb Music Player",
+  "short_name": "AudioWeb",
+  "description": "A modern, feature-rich web-based audio player with equalizer, lyrics, and playlist management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14141c",
+  "theme_color": "#14141c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/images/aw-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "entertainment", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Open Player",
+      "short_name": "Player",
+      "description": "Open the music player",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/images/aw-logo.svg",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/aw-banner.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ]
+}

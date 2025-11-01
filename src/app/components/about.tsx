@@ -157,8 +157,12 @@ export const AboutPopup: React.FC<AboutPopupProps> = ({ show, onClose, isPlaying
             <div className="grid grid-cols-1 gap-3">
               <TechStackItem
                 icon={
-                  <svg className="w-6 h-6 text-purple-400" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M15.852 8.981h-4.588V0h4.588c2.476 0 4.49 2.014 4.49 4.49s-2.014 4.491-4.49 4.491zM12.735 7.51h3.117c1.665 0 3.019-1.355 3.019-3.019s-1.354-3.019-3.019-3.019h-3.117V7.51zm0 1.471H8.148c-2.476 0-4.49-2.015-4.49-4.491S5.672 0 8.148 0h4.588v8.981zm-4.587-7.51c-1.665 0-3.019 1.355-3.019 3.019s1.354 3.02 3.019 3.02h3.117V1.471H8.148zm4.587 15.019H8.148c-2.476 0-4.49-2.014-4.49-4.49s2.014-4.49 4.49-4.49h4.588v8.98zM8.148 8.981c-1.665 0-3.019 1.355-3.019 3.019s1.355 3.019 3.019 3.019h3.117v-6.038H8.148zm7.704 0c-2.476 0-4.49 2.015-4.49 4.49s2.014 4.49 4.49 4.49 4.49-2.014 4.49-4.49-2.014-4.49-4.49-4.49zm0 7.51c-1.665 0-3.019-1.355-3.019-3.02s1.354-3.019 3.019-3.019 3.019 1.355 3.019 3.019-1.354 3.02-3.019 3.02zM8.148 24c-2.476 0-4.49-2.014-4.49-4.49s2.014-4.49 4.49-4.49h4.588V24H8.148zm0-7.51c-1.665 0-3.019 1.355-3.019 3.02S6.483 22.529 8.148 22.529h3.117V16.49H8.148z"/>
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                    <path d="M8 24c2.208 0 4-1.792 4-4v-4H8c-2.208 0-4 1.792-4 4s1.792 4 4 4z" fill="#0ACF83"/>
+                    <path d="M4 12c0-2.208 1.792-4 4-4h4v8H8c-2.208 0-4-1.792-4-4z" fill="#A259FF"/>
+                    <path d="M4 4c0-2.208 1.792-4 4-4h4v8H8C5.792 8 4 6.208 4 4z" fill="#F24E1E"/>
+                    <path d="M12 0h4c2.208 0 4 1.792 4 4s-1.792 4-4 4h-4V0z" fill="#FF7262"/>
+                    <path d="M20 12c0 2.208-1.792 4-4 4s-4-1.792-4-4 1.792-4 4-4 4 1.792 4 4z" fill="#1ABCFE"/>
                   </svg>
                 }
                 name="Figma"
@@ -166,8 +170,25 @@ export const AboutPopup: React.FC<AboutPopupProps> = ({ show, onClose, isPlaying
               />
               <TechStackItem
                 icon={
-                  <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M11.572 0c-.176 0-.31.001-.358.007a19.76 19.76 0 01-.364.033C7.443.346 4.25 2.185 2.228 5.012a11.875 11.875 0 00-2.119 5.243c-.096.659-.108.854-.108 1.747s.012 1.089.108 1.748c.652 4.506 3.86 8.292 8.209 9.695.779.25 1.6.422 2.534.525.363.04 1.935.04 2.299 0 1.611-.178 2.977-.577 4.323-1.264.207-.106.247-.134.219-.158-.02-.013-.9-1.193-1.955-2.62l-1.919-2.592-2.404-3.558a338.739 338.739 0 00-2.422-3.556c-.009-.002-.018 1.579-.023 3.51-.007 3.38-.01 3.515-.052 3.595a.426.426 0 01-.206.214c-.075.037-.14.044-.495.044H7.81l-.108-.068a.438.438 0 01-.157-.171l-.05-.106.006-4.703.007-4.705.072-.092a.645.645 0 01.174-.143c.096-.047.134-.051.54-.051.478 0 .558.018.682.154.035.038 1.337 1.999 2.895 4.361a10760.433 10760.433 0 004.735 7.17l1.9 2.879.096-.063a12.317 12.317 0 002.466-2.163 11.944 11.944 0 002.824-6.134c.096-.66.108-.854.108-1.748 0-.893-.012-1.088-.108-1.747C23.472 4.188 18.651.248 12.925.07 12.58.036 11.716.005 11.572 0z"/>
+                  <svg className="w-6 h-6" viewBox="0 0 180 180" fill="none">
+                    <mask id="mask0_408_139" style={{maskType: 'alpha'}} maskUnits="userSpaceOnUse" x="0" y="0" width="180" height="180">
+                      <circle cx="90" cy="90" r="90" fill="black"/>
+                    </mask>
+                    <g mask="url(#mask0_408_139)">
+                      <circle cx="90" cy="90" r="90" fill="black"/>
+                      <path d="M149.508 157.52L69.142 54H54V125.97H66.1136V69.3836L139.999 164.845C143.333 162.614 146.509 160.165 149.508 157.52Z" fill="url(#paint0_linear_408_139)"/>
+                      <rect x="115" y="54" width="12" height="72" fill="url(#paint1_linear_408_139)"/>
+                    </g>
+                    <defs>
+                      <linearGradient id="paint0_linear_408_139" x1="109" y1="116.5" x2="144.5" y2="160.5" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="white"/>
+                        <stop offset="1" stopColor="white" stopOpacity="0"/>
+                      </linearGradient>
+                      <linearGradient id="paint1_linear_408_139" x1="121" y1="54" x2="120.799" y2="106.875" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="white"/>
+                        <stop offset="1" stopColor="white" stopOpacity="0"/>
+                      </linearGradient>
+                    </defs>
                   </svg>
                 }
                 name="Next.js"
@@ -200,12 +221,9 @@ export const AboutPopup: React.FC<AboutPopupProps> = ({ show, onClose, isPlaying
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-300 transition-all duration-200 hover:scale-105"
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M4 18h16c.55 0 1-.45 1-1s-.45-1-1-1H4c-.55 0-1 .45-1 1s.45 1 1 1zM4 22h16c.55 0 1-.45 1-1s-.45-1-1-1H4c-.55 0-1 .45-1 1s.45 1 1 1z"/>
-                <path d="M20 8H4V6c0-1.1.9-2 2-2h12c1.1 0 2 .9 2 2v2zM6 10h12l-1 6H7l-1-6z"/>
-                <path d="M17 2H7C5.9 2 5 2.9 5 4v1h14V4c0-1.1-.9-2-2-2z"/>
-                <circle cx="9" cy="13" r="1"/>
-                <circle cx="15" cy="13" r="1"/>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 8h12M6 8V6a2 2 0 012-2h8a2 2 0 012 2v2M6 8v10a2 2 0 002 2h8a2 2 0 002-2V8" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 10h1a2 2 0 012 2v2a2 2 0 01-2 2h-1" />
               </svg>
               <span className="font-medium">Buy me a coffee</span>
             </a>

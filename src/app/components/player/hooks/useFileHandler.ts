@@ -4,8 +4,8 @@ import * as musicMetadata from 'music-metadata-browser';
 
 // Parse LRC format lyrics with timing information
 const parseLrcFormat = (lrcContent: string): LyricLine[] => {
-  // Remove language prefix if present (e.g., "eng||")
-  const content = lrcContent.replace(/^[a-z]{2,3}\|\|/, '').trim();
+  // Remove language prefix if present (e.g., "eng||" or "eng:")
+  const content = lrcContent.replace(/^[a-z]{2,3}(\|\||:)/i, '').trim();
   
   const lines = content.split('\n');
   const lyrics: LyricLine[] = [];
@@ -17,7 +17,7 @@ const parseLrcFormat = (lrcContent: string): LyricLine[] => {
     if (!line) continue;
     
     // Remove language prefix like "eng||" from individual lines too
-    line = line.replace(/^[a-z]{2,3}\|\|/, '');
+    line = line.replace(/^[a-z]{2,3}(\|\||:)/i, '');
     
     // Skip metadata lines like [ar:Artist], [ti:Title], etc.
     if (line.match(/^\[(ar|al|ti|length|offset|by|tool|ve|re):/i)) {
@@ -49,6 +49,49 @@ const parseLrcFormat = (lrcContent: string): LyricLine[] => {
   return lyrics;
 };
 
+// Extract USLT lyrics using jsmediatags
+const extractUSLTLyrics = (file: File): Promise<string> => {
+  return new Promise((resolve) => {
+    // Dynamically import jsmediatags only on client side
+    if (typeof window === 'undefined') {
+      resolve('');
+      return;
+    }
+    
+    import('jsmediatags').then(({ default: jsmediatags }) => {
+      jsmediatags.read(file, {
+        onSuccess: (tag: { tags: { USLT?: { lyrics: string }; lyrics?: { lyrics: string }; [key: string]: unknown } }) => {
+          console.log('jsmediatags read success, available tags:', Object.keys(tag.tags)); // Debug log
+          
+          // Check for USLT tag (Unsynchronized lyrics)
+          if (tag.tags.USLT && tag.tags.USLT.lyrics) {
+            console.log('Found USLT lyrics via jsmediatags, length:', tag.tags.USLT.lyrics.length);
+            resolve(tag.tags.USLT.lyrics);
+            return;
+          }
+          
+          // Also check for 'lyrics' tag
+          if (tag.tags.lyrics && typeof tag.tags.lyrics === 'object' && 'lyrics' in tag.tags.lyrics) {
+            console.log('Found lyrics tag via jsmediatags');
+            resolve(tag.tags.lyrics.lyrics);
+            return;
+          }
+          
+          console.log('No USLT/lyrics found via jsmediatags');
+          resolve('');
+        },
+        onError: (error: { type: string; info: string }) => {
+          console.warn('jsmediatags error:', error.type, error.info);
+          resolve('');
+        }
+      });
+    }).catch((error: unknown) => {
+      console.warn('Failed to load jsmediatags:', error);
+      resolve('');
+    });
+  });
+};
+
 export const useFileHandler = (
   playlist: AudioTrack[],
   setPlaylist: (tracks: AudioTrack[] | ((prev: AudioTrack[]) => AudioTrack[])) => void,
@@ -62,64 +105,65 @@ export const useFileHandler = (
       const metadata = await musicMetadata.parseBlob(file);
       const { common, format } = metadata;
       
+      console.log('Extracting metadata for:', file.name); // Debug log
+      
       let albumArt = '';
       if (common.picture && common.picture.length > 0) {
         const picture = common.picture[0];
-        const blob = new Blob([picture.data], { type: picture.format });
+        const blob = new Blob([new Uint8Array(picture.data)], { type: picture.format });
         albumArt = URL.createObjectURL(blob);
       }
 
-      // Extract lyrics from metadata
+      // Extract lyrics - first try jsmediatags for USLT
       let lyrics = '';
-      
-      console.log('Extracting lyrics for:', file.name); // Debug log
-      
-      if (common.lyrics && common.lyrics.length > 0) {
-        lyrics = common.lyrics[0];
-        console.log('Found common.lyrics:', lyrics.substring(0, 100)); // Debug log
-      }
-      
       let lrcLyrics: LyricLine[] | undefined;
       
-      if (!lyrics && metadata.native) {
-        // ID3v2 tags - only look for USLT (standard lyrics tag)
-        if (metadata.native.id3v2) {
-          const usltTag = metadata.native.id3v2.find(tag => tag.id === 'USLT');
-          if (usltTag && usltTag.value) {
-            if (typeof usltTag.value === 'string') {
-              lyrics = usltTag.value;
-            } else if (usltTag.value.text) {
-              lyrics = usltTag.value.text;
-            } else if (usltTag.value.description && usltTag.value.lyrics) {
-              lyrics = usltTag.value.lyrics;
-            }
-          }
-        }
+      console.log('Attempting to extract USLT lyrics via jsmediatags...');
+      const usltLyrics = await extractUSLTLyrics(file);
+      
+      if (usltLyrics) {
+        lyrics = usltLyrics;
+        console.log('Successfully extracted USLT lyrics, length:', lyrics.length);
         
-        // Vorbis comments - only look for LYRICS tag
-        if (!lyrics && metadata.native.vorbis) {
-          const lyricsTag = metadata.native.vorbis.find(tag => 
-            tag.id === 'LYRICS'
-          );
-          if (lyricsTag && lyricsTag.value) {
-            lyrics = lyricsTag.value;
-          }
+        // Check if it's LRC format
+        if (/\[\d{1,2}:\d{2}[\.\:]\d{2}\]/.test(lyrics)) {
+          console.log('Detected LRC format in USLT lyrics, parsing...');
+          lrcLyrics = parseLrcFormat(lyrics);
+          console.log('Parsed LRC lyrics from USLT:', lrcLyrics.length, 'lines');
+          lyrics = ''; // Clear simple lyrics since we have LRC
         }
       }
       
-      if (lyrics) {
+      // Fallback to music-metadata-browser if no USLT found
+      if (!lyrics && !lrcLyrics) {
+        console.log('No USLT found, trying music-metadata-browser...');
+        
+        if (common.lyrics && common.lyrics.length > 0) {
+          lyrics = common.lyrics[0];
+          console.log('Found common.lyrics:', lyrics.substring(0, 100));
+        }
+      }
+      
+      // Process lyrics if found
+      if (lyrics && !lrcLyrics) {
         lyrics = lyrics.trim();
         
-        // Remove language prefix if present
-        lyrics = lyrics.replace(/^[a-z]{2,3}\|\|/i, '');
+        console.log('Raw lyrics before processing:', lyrics.substring(0, 200));
+        
+        // Remove language prefix if present (e.g., "eng||" or "eng:")
+        lyrics = lyrics.replace(/^[a-z]{2,3}(\|\||:)/i, '');
         
         lyrics = lyrics.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         lyrics = lyrics.replace(/\n{3,}/g, '\n\n');
         
         // Parse LRC format if it contains timestamp patterns
         if (/\[\d{1,2}:\d{2}[\.\:]\d{2}\]/.test(lyrics)) {
+          console.log('Detected LRC format in metadata, parsing...');
           lrcLyrics = parseLrcFormat(lyrics);
+          console.log('Parsed LRC lyrics from metadata:', lrcLyrics.length, 'lines');
           lyrics = ''; // Clear simple lyrics since we have LRC
+        } else {
+          console.log('Using simple lyrics format');
         }
       }
 
@@ -183,10 +227,22 @@ export const useFileHandler = (
           const lrcContent = await lrcFile.text();
           console.log('LRC content length:', lrcContent.length); // Debug log
           lrcLyrics = parseLrcFormat(lrcContent);
-          console.log('Parsed LRC lyrics length:', lrcLyrics.length); // Debug log
+          console.log('Parsed LRC lyrics from file length:', lrcLyrics.length); // Debug log
         } catch (error) {
           console.warn('Failed to read LRC file:', error);
         }
+      }
+      
+      // Use LRC file if available, otherwise fall back to metadata LRC lyrics
+      const finalLrcLyrics = lrcLyrics || metadata.lrcLyrics;
+      const finalLyrics = finalLrcLyrics ? '' : (metadata.lyrics || ''); // Clear simple lyrics if we have LRC
+      
+      if (finalLrcLyrics) {
+        console.log('Using LRC lyrics for', audioBaseName, '- lines:', finalLrcLyrics.length);
+      } else if (finalLyrics) {
+        console.log('Using simple lyrics for', audioBaseName, '- length:', finalLyrics.length);
+      } else {
+        console.log('No lyrics found for', audioBaseName);
       }
 
       const track: AudioTrack = {
@@ -201,8 +257,8 @@ export const useFileHandler = (
         url: URL.createObjectURL(file),
         isActive: playlist.length === 0 && i === 0,
         albumArt: metadata.albumArt,
-        lyrics: metadata.lyrics || '',
-        lrcLyrics: lrcLyrics || metadata.lrcLyrics
+        lyrics: finalLyrics,
+        lrcLyrics: finalLrcLyrics
       };
       
       newTracks.push(track);

@@ -34,13 +34,5 @@
         }
       ]
     }
-  ],
-  "screenshots": [
-    {
-      "src": "/images/aw-banner.png",
-      "sizes": "1200x630",
-      "type": "image/png",
-      "form_factor": "wide"
-    }
   ]
 }

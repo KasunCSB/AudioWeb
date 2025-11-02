@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { AudioTrack, EqualizerSettings } from '../types';
+import { createLogger } from '@/utils/logger';
+import { getAudioErrorMessage } from '@/utils/audioUtils';
+
+const logger = createLogger('AudioManager');
 
 export const useAudioManager = (
   playlist: AudioTrack[],
@@ -24,6 +28,8 @@ export const useAudioManager = (
     if (!audio) return;
 
     try {
+      logger.start('Initializing Web Audio API');
+      
       const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       const source = audioContext.createMediaElementSource(audio);
       const gainNode = audioContext.createGain();
@@ -50,14 +56,20 @@ export const useAudioManager = (
       audioContextRef.current = audioContext;
       gainNodeRef.current = gainNode;
       filtersRef.current = filters;
+      
+      logger.info('Web Audio API initialized successfully');
 
       return () => {
         if (audioContext.state !== 'closed') {
-          audioContext.close();
+          audioContext.close().catch((err) => {
+            logger.error('Error closing audio context:', err);
+          });
         }
       };
     } catch (error) {
-      console.warn('Web Audio API not supported:', error);
+      logger.error('Web Audio API not supported:', error);
+      // Fallback to basic HTML5 audio without equalizer
+      logger.warn('Equalizer features will be disabled');
     }
   }, []);
 
@@ -121,12 +133,19 @@ export const useAudioManager = (
     if (!audio) return;
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const handleLoadedMetadata = () => setDuration(audio.duration);
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration);
+      logger.debug(`Audio loaded: duration=${audio.duration.toFixed(2)}s`);
+    };
+    
     const handleEnded = () => {
+      logger.debug('Track ended');
       if (repeatMode === 2) {
         // Repeat one
         audio.currentTime = 0;
-        audio.play();
+        audio.play().catch((err) => {
+          logger.error('Failed to play repeated track:', err);
+        });
       } else if (repeatMode === 1 && currentTrackIndex < playlist.length - 1) {
         // Repeat all - go to next track
         handleNext();
@@ -135,17 +154,52 @@ export const useAudioManager = (
         handleNext();
       } else {
         setIsPlaying(false);
+        logger.info('Playlist ended');
       }
+    };
+    
+    const handleError = (e: Event) => {
+      const target = e.target as HTMLAudioElement;
+      const error = target.error;
+      const errorMessage = getAudioErrorMessage(error);
+      
+      logger.error('Audio playback error:', errorMessage);
+      
+      // Display error to user (you can enhance this with a toast notification)
+      console.error('Playback error:', errorMessage);
+      
+      // Try to recover by pausing
+      setIsPlaying(false);
+    };
+    
+    const handleCanPlay = () => {
+      logger.debug('Audio can play');
+    };
+    
+    const handleWaiting = () => {
+      logger.debug('Audio buffering...');
+    };
+    
+    const handleStalled = () => {
+      logger.warn('Audio playback stalled');
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('stalled', handleStalled);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('stalled', handleStalled);
     };
   }, [repeatMode, currentTrackIndex, playlist.length, handleNext, setCurrentTime, setDuration, setIsPlaying]);
 
@@ -163,13 +217,23 @@ export const useAudioManager = (
 
     if (isPlaying) {
       audio.pause();
+      logger.debug('Playback paused');
     } else {
       // Ensure the correct audio source is loaded
       if (audio.src !== currentTrack.url) {
+        logger.debug('Loading new track:', currentTrack.title);
         audio.src = currentTrack.url;
         audio.load();
       }
-      audio.play().catch(console.error);
+      
+      audio.play().catch((error) => {
+        logger.error('Failed to play audio:', error);
+        // Handle autoplay policies
+        if (error.name === 'NotAllowedError') {
+          logger.warn('Autoplay was prevented by browser policy');
+          // You can show a user-friendly message here
+        }
+      });
     }
     setIsPlaying(!isPlaying);
   }, [isPlaying, playlist, currentTrackIndex, setIsPlaying]);

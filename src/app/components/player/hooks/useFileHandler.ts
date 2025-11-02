@@ -1,9 +1,27 @@
 import { useState, useCallback } from 'react';
 import { AudioTrack, LyricLine } from '../types';
 import * as musicMetadata from 'music-metadata-browser';
+import { createLogger } from '@/utils/logger';
+import { 
+  isAudioFile, 
+  isLyricsFile, 
+  getAudioFormat, 
+  isLosslessFormat,
+  createObjectURL,
+  formatBitrate,
+  formatSampleRate,
+  getQualityDescription,
+  sanitizeFilename,
+  extractTrackNumber,
+} from '@/utils/audioUtils';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES, PERFORMANCE } from '@/config/constants';
+
+const logger = createLogger('FileHandler');
 
 // Parse LRC format lyrics with timing information
 const parseLrcFormat = (lrcContent: string): LyricLine[] => {
+  const startTime = performance.now();
+  
   // Remove language prefix if present (e.g., "eng||" or "eng:")
   const content = lrcContent.replace(/^[a-z]{2,3}(\|\||:)/i, '').trim();
   
@@ -45,7 +63,9 @@ const parseLrcFormat = (lrcContent: string): LyricLine[] => {
   // Sort by time
   lyrics.sort((a, b) => a.time - b.time);
   
-  console.log('Parsed LRC lyrics:', lyrics.length, 'lines with timing'); // Debug log
+  const duration = performance.now() - startTime;
+  logger.debug(`Parsed ${lyrics.length} LRC lyrics lines in ${duration.toFixed(2)}ms`);
+  
   return lyrics;
 };
 
@@ -58,35 +78,44 @@ const extractUSLTLyrics = (file: File): Promise<string> => {
       return;
     }
     
+    // Timeout for metadata extraction
+    const timeout = setTimeout(() => {
+      logger.warn('USLT extraction timed out for:', file.name);
+      resolve('');
+    }, PERFORMANCE.METADATA_EXTRACTION_TIMEOUT);
+    
     import('jsmediatags').then(({ default: jsmediatags }) => {
       jsmediatags.read(file, {
         onSuccess: (tag: { tags: { USLT?: { lyrics: string }; lyrics?: { lyrics: string }; [key: string]: unknown } }) => {
-          console.log('jsmediatags read success, available tags:', Object.keys(tag.tags)); // Debug log
+          clearTimeout(timeout);
+          logger.debug('jsmediatags read success for:', file.name);
           
           // Check for USLT tag (Unsynchronized lyrics)
           if (tag.tags.USLT && tag.tags.USLT.lyrics) {
-            console.log('Found USLT lyrics via jsmediatags, length:', tag.tags.USLT.lyrics.length);
+            logger.info('Found USLT lyrics via jsmediatags, length:', tag.tags.USLT.lyrics.length);
             resolve(tag.tags.USLT.lyrics);
             return;
           }
           
           // Also check for 'lyrics' tag
           if (tag.tags.lyrics && typeof tag.tags.lyrics === 'object' && 'lyrics' in tag.tags.lyrics) {
-            console.log('Found lyrics tag via jsmediatags');
+            logger.info('Found lyrics tag via jsmediatags');
             resolve(tag.tags.lyrics.lyrics);
             return;
           }
           
-          console.log('No USLT/lyrics found via jsmediatags');
+          logger.debug('No USLT/lyrics found via jsmediatags for:', file.name);
           resolve('');
         },
         onError: (error: { type: string; info: string }) => {
-          console.warn('jsmediatags error:', error.type, error.info);
+          clearTimeout(timeout);
+          logger.warn('jsmediatags error:', error.type, error.info);
           resolve('');
         }
       });
     }).catch((error: unknown) => {
-      console.warn('Failed to load jsmediatags:', error);
+      clearTimeout(timeout);
+      logger.error('Failed to load jsmediatags:', error);
       resolve('');
     });
   });
@@ -100,47 +129,79 @@ export const useFileHandler = (
   const [isDragOver, setIsDragOver] = useState(false);
 
   // Extract metadata from audio file
-  const extractMetadata = async (file: File): Promise<Partial<AudioTrack>> => {
+  const extractMetadata = async (file: File): Promise<{
+    title?: string;
+    artist?: string;
+    album?: string;
+    albumArtist?: string;
+    year?: number;
+    genre?: string;
+    composer?: string;
+    conductor?: string;
+    trackNumber?: number;
+    trackTotal?: number;
+    discNumber?: number;
+    discTotal?: number;
+    duration?: number;
+    bitrate?: number;
+    sampleRate?: number;
+    channels?: number;
+    codec?: string;
+    lossless?: boolean;
+    albumArt?: string;
+    lyrics?: string;
+    lrcLyrics?: LyricLine[];
+  }> => {
+    const startTime = performance.now();
+    
     try {
+      logger.start(`Extracting metadata from: ${file.name}`);
+      
       const metadata = await musicMetadata.parseBlob(file);
       const { common, format } = metadata;
       
-      console.log('Extracting metadata for:', file.name); // Debug log
-      
+      // Extract album art
       let albumArt = '';
       if (common.picture && common.picture.length > 0) {
         const picture = common.picture[0];
-        const blob = new Blob([new Uint8Array(picture.data)], { type: picture.format });
-        albumArt = URL.createObjectURL(blob);
+        
+        // Check album art size
+        const artSize = picture.data.length;
+        if (artSize > PERFORMANCE.MAX_ALBUM_ART_SIZE) {
+          logger.warn(`Album art too large (${(artSize / 1024 / 1024).toFixed(2)}MB), skipping`);
+        } else {
+          const blob = new Blob([new Uint8Array(picture.data)], { type: picture.format });
+          albumArt = createObjectURL(blob);
+          logger.debug(`Extracted album art: ${picture.format}, ${(artSize / 1024).toFixed(2)}KB`);
+        }
       }
 
       // Extract lyrics - first try jsmediatags for USLT
       let lyrics = '';
       let lrcLyrics: LyricLine[] | undefined;
       
-      console.log('Attempting to extract USLT lyrics via jsmediatags...');
+      logger.debug('Attempting to extract USLT lyrics...');
       const usltLyrics = await extractUSLTLyrics(file);
       
       if (usltLyrics) {
         lyrics = usltLyrics;
-        console.log('Successfully extracted USLT lyrics, length:', lyrics.length);
+        logger.info(`Extracted USLT lyrics (${lyrics.length} chars)`);
         
         // Check if it's LRC format
         if (/\[\d{1,2}:\d{2}[\.\:]\d{2}\]/.test(lyrics)) {
-          console.log('Detected LRC format in USLT lyrics, parsing...');
+          logger.debug('Detected LRC format in USLT lyrics');
           lrcLyrics = parseLrcFormat(lyrics);
-          console.log('Parsed LRC lyrics from USLT:', lrcLyrics.length, 'lines');
           lyrics = ''; // Clear simple lyrics since we have LRC
         }
       }
       
       // Fallback to music-metadata-browser if no USLT found
       if (!lyrics && !lrcLyrics) {
-        console.log('No USLT found, trying music-metadata-browser...');
+        logger.debug('No USLT found, trying music-metadata-browser...');
         
         if (common.lyrics && common.lyrics.length > 0) {
           lyrics = common.lyrics[0];
-          console.log('Found common.lyrics:', lyrics.substring(0, 100));
+          logger.debug(`Found common.lyrics (${lyrics.length} chars)`);
         }
       }
       
@@ -148,40 +209,67 @@ export const useFileHandler = (
       if (lyrics && !lrcLyrics) {
         lyrics = lyrics.trim();
         
-        console.log('Raw lyrics before processing:', lyrics.substring(0, 200));
-        
-        // Remove language prefix if present (e.g., "eng||" or "eng:")
+        // Remove language prefix if present
         lyrics = lyrics.replace(/^[a-z]{2,3}(\|\||:)/i, '');
-        
         lyrics = lyrics.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         lyrics = lyrics.replace(/\n{3,}/g, '\n\n');
         
         // Parse LRC format if it contains timestamp patterns
         if (/\[\d{1,2}:\d{2}[\.\:]\d{2}\]/.test(lyrics)) {
-          console.log('Detected LRC format in metadata, parsing...');
+          logger.debug('Detected LRC format in metadata');
           lrcLyrics = parseLrcFormat(lyrics);
-          console.log('Parsed LRC lyrics from metadata:', lrcLyrics.length, 'lines');
           lyrics = ''; // Clear simple lyrics since we have LRC
-        } else {
-          console.log('Using simple lyrics format');
         }
       }
 
-      return {
-        title: common.title || file.name.replace(/\.[^/.]+$/, ""),
+      // Detect format information
+      const formatInfo = getAudioFormat(file);
+      const lossless = formatInfo ? isLosslessFormat(formatInfo.format) : false;
+      
+      // Extract comprehensive metadata
+      const extractedMetadata = {
+        title: common.title || sanitizeFilename(file.name),
         artist: common.artist || "Unknown Artist",
         album: common.album || "Unknown Album",
+        albumArtist: common.albumartist,
         year: common.year,
         genre: common.genre && common.genre.length > 0 ? common.genre[0] : undefined,
+        composer: common.composer && common.composer.length > 0 ? common.composer.join(', ') : undefined,
+        conductor: common.conductor && Array.isArray(common.conductor) ? common.conductor.join(', ') : common.conductor,
+        trackNumber: common.track?.no || extractTrackNumber(file.name),
+        trackTotal: common.track?.of ?? undefined,
+        discNumber: common.disk?.no ?? undefined,
+        discTotal: common.disk?.of ?? undefined,
         duration: format.duration || 0,
+        bitrate: format.bitrate ? Math.round(format.bitrate / 1000) : undefined,
+        sampleRate: format.sampleRate,
+        channels: format.numberOfChannels,
+        codec: format.codec,
+        lossless,
         albumArt,
         lyrics,
-        lrcLyrics
+        lrcLyrics,
       };
+      
+      const duration = performance.now() - startTime;
+      logger.complete(`Metadata extraction for ${file.name}`, duration);
+      
+      if (extractedMetadata.bitrate && extractedMetadata.sampleRate) {
+        logger.info(
+          `Audio quality: ${formatBitrate(extractedMetadata.bitrate)}, ` +
+          `${formatSampleRate(extractedMetadata.sampleRate)}, ` +
+          `${getQualityDescription(extractedMetadata.bitrate, extractedMetadata.sampleRate, lossless)}`
+        );
+      }
+
+      return extractedMetadata;
     } catch (error) {
-      console.warn('Failed to extract metadata:', error);
+      const duration = performance.now() - startTime;
+      logger.error('Failed to extract metadata:', error);
+      logger.performance('Failed metadata extraction', duration);
+      
       return {
-        title: file.name.replace(/\.[^/.]+$/, ""),
+        title: sanitizeFilename(file.name),
         artist: "Unknown Artist",
         album: "Unknown Album",
         duration: 0,
@@ -191,77 +279,124 @@ export const useFileHandler = (
   };
 
   const handleFileUpload = useCallback(async (files: FileList) => {
-    const audioFiles = Array.from(files).filter(file => 
-      file.type.startsWith('audio/')
+    const startTime = performance.now();
+    logger.start(`Processing ${files.length} files`);
+    
+    // Separate audio and lyrics files using utility functions
+    const audioFiles = Array.from(files).filter(file => isAudioFile(file));
+    const lrcFiles = Array.from(files).filter(file => isLyricsFile(file));
+
+    logger.info(`Found ${audioFiles.length} audio files and ${lrcFiles.length} lyrics files`);
+    
+    // Warn about unsupported files
+    const unsupportedFiles = Array.from(files).filter(file => 
+      !isAudioFile(file) && !isLyricsFile(file)
     );
     
-    const lrcFiles = Array.from(files).filter(file => 
-      file.name.toLowerCase().endsWith('.lrc')
-    );
-
-    console.log('Processing files:', audioFiles.length, 'audio files,', lrcFiles.length, 'LRC files'); // Debug log
+    if (unsupportedFiles.length > 0) {
+      logger.warn(`Skipping ${unsupportedFiles.length} unsupported files:`, 
+        unsupportedFiles.map(f => f.name).join(', '));
+    }
 
     // Create a map of LRC files by their base name (without extension)
     const lrcMap = new Map<string, File>();
     lrcFiles.forEach(file => {
-      const baseName = file.name.replace(/\.lrc$/i, '').toLowerCase();
-      console.log('Adding LRC file to map:', baseName, '→', file.name); // Debug log
+      const baseName = file.name.replace(/\.(lrc|txt)$/i, '').toLowerCase();
+      logger.debug('Adding LRC file to map:', baseName, '→', file.name);
       lrcMap.set(baseName, file);
     });
 
     const newTracks: AudioTrack[] = [];
     
-    for (let i = 0; i < audioFiles.length; i++) {
-      const file = audioFiles[i];
-      const metadata = await extractMetadata(file);
-      
-      // Check for corresponding LRC file
-      const audioBaseName = file.name.replace(/\.[^/.]+$/, '').toLowerCase();
-      const lrcFile = lrcMap.get(audioBaseName);
-      let lrcLyrics: LyricLine[] | undefined;
-      
-      console.log('Looking for LRC file for:', audioBaseName, 'Found:', !!lrcFile); // Debug log
-      
-      if (lrcFile) {
+    // Process audio files in batches for better performance
+    const batchSize = PERFORMANCE.PARALLEL_METADATA_EXTRACTION;
+    for (let i = 0; i < audioFiles.length; i += batchSize) {
+      const batch = audioFiles.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (file, batchIndex) => {
+        const globalIndex = i + batchIndex;
+        
         try {
-          const lrcContent = await lrcFile.text();
-          console.log('LRC content length:', lrcContent.length); // Debug log
-          lrcLyrics = parseLrcFormat(lrcContent);
-          console.log('Parsed LRC lyrics from file length:', lrcLyrics.length); // Debug log
-        } catch (error) {
-          console.warn('Failed to read LRC file:', error);
-        }
-      }
-      
-      // Use LRC file if available, otherwise fall back to metadata LRC lyrics
-      const finalLrcLyrics = lrcLyrics || metadata.lrcLyrics;
-      const finalLyrics = finalLrcLyrics ? '' : (metadata.lyrics || ''); // Clear simple lyrics if we have LRC
-      
-      if (finalLrcLyrics) {
-        console.log('Using LRC lyrics for', audioBaseName, '- lines:', finalLrcLyrics.length);
-      } else if (finalLyrics) {
-        console.log('Using simple lyrics for', audioBaseName, '- length:', finalLyrics.length);
-      } else {
-        console.log('No lyrics found for', audioBaseName);
-      }
+          const metadata = await extractMetadata(file);
+          
+          // Check for corresponding LRC file
+          const audioBaseName = file.name.replace(/\.[^/.]+$/, '').toLowerCase();
+          const lrcFile = lrcMap.get(audioBaseName);
+          let lrcLyrics: LyricLine[] | undefined;
+          
+          logger.debug('Looking for LRC file for:', audioBaseName, 'Found:', !!lrcFile);
+          
+          if (lrcFile) {
+            try {
+              const lrcContent = await lrcFile.text();
+              logger.debug(`LRC content length: ${lrcContent.length}`);
+              lrcLyrics = parseLrcFormat(lrcContent);
+              logger.info(`Parsed ${lrcLyrics.length} LRC lyrics lines from file`);
+            } catch (error) {
+              logger.error('Failed to read LRC file:', error);
+            }
+          }
+          
+          // Use LRC file if available, otherwise fall back to metadata LRC lyrics
+          const finalLrcLyrics = lrcLyrics || metadata.lrcLyrics;
+          const finalLyrics = finalLrcLyrics ? '' : (metadata.lyrics || ''); // Clear simple lyrics if we have LRC
+          
+          if (finalLrcLyrics) {
+            logger.info(`Using ${finalLrcLyrics.length} LRC lyrics lines for ${audioBaseName}`);
+          } else if (finalLyrics) {
+            logger.info(`Using ${finalLyrics.length} chars of simple lyrics for ${audioBaseName}`);
+          }
 
-      const track: AudioTrack = {
-        id: `${Date.now()}-${i}`,
-        title: metadata.title || file.name.replace(/\.[^/.]+$/, ""),
-        artist: metadata.artist || "Unknown Artist",
-        album: metadata.album || "Unknown Album",
-        year: metadata.year,
-        genre: metadata.genre,
-        duration: metadata.duration || 0,
-        file,
-        url: URL.createObjectURL(file),
-        isActive: playlist.length === 0 && i === 0,
-        albumArt: metadata.albumArt,
-        lyrics: finalLyrics,
-        lrcLyrics: finalLrcLyrics
-      };
+          const track: AudioTrack = {
+            id: `${Date.now()}-${globalIndex}-${Math.random().toString(36).substr(2, 9)}`,
+            title: metadata.title || sanitizeFilename(file.name),
+            artist: metadata.artist || "Unknown Artist",
+            album: metadata.album || "Unknown Album",
+            year: metadata.year,
+            genre: metadata.genre,
+            duration: metadata.duration || 0,
+            file,
+            url: createObjectURL(file),
+            isActive: playlist.length === 0 && globalIndex === 0,
+            albumArt: metadata.albumArt,
+            lyrics: finalLyrics,
+            lrcLyrics: finalLrcLyrics,
+            metadata: {
+              albumArtist: metadata.albumArtist,
+              composer: metadata.composer,
+              conductor: metadata.conductor,
+              trackNumber: metadata.trackNumber,
+              trackTotal: metadata.trackTotal,
+              discNumber: metadata.discNumber,
+              discTotal: metadata.discTotal,
+              bitrate: metadata.bitrate,
+              sampleRate: metadata.sampleRate,
+              channels: metadata.channels,
+              codec: metadata.codec,
+              lossless: metadata.lossless,
+            },
+          };
+          
+          return track;
+        } catch (error) {
+          logger.error(`Failed to process file ${file.name}:`, error);
+          
+          // Create a minimal track with error
+          return {
+            id: `${Date.now()}-${globalIndex}-error`,
+            title: sanitizeFilename(file.name),
+            artist: "Unknown Artist",
+            album: "Unknown Album",
+            duration: 0,
+            file,
+            url: createObjectURL(file),
+            isActive: false,
+            error: ERROR_MESSAGES.METADATA_EXTRACTION_FAILED,
+          } as AudioTrack;
+        }
+      });
       
-      newTracks.push(track);
+      const batchResults = await Promise.all(batchPromises);
+      newTracks.push(...batchResults);
     }
 
     setPlaylist(prev => {
@@ -275,7 +410,11 @@ export const useFileHandler = (
       
       const duplicateCount = newTracks.length - filteredTracks.length;
       if (duplicateCount > 0) {
-        console.log(`Skipped ${duplicateCount} duplicate track${duplicateCount > 1 ? 's' : ''}`);
+        logger.info(`Skipped ${duplicateCount} duplicate track(s)`);
+      }
+      
+      if (filteredTracks.length > 0) {
+        logger.info(SUCCESS_MESSAGES.TRACKS_ADDED(filteredTracks.length));
       }
       
       const updated = [...prev, ...filteredTracks];
@@ -288,47 +427,54 @@ export const useFileHandler = (
     if (playlist.length === 0 && newTracks.length > 0) {
       setCurrentTrackIndex(0);
     }
+    
+    const duration = performance.now() - startTime;
+    logger.complete(`File upload processing`, duration);
   }, [playlist.length, setPlaylist, setCurrentTrackIndex]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     try {
       e.preventDefault();
+      e.stopPropagation();
     } catch {
       // Ignore passive event listener error
     }
     
-    // Check if any of the dragged files are audio or LRC files
-    const items = Array.from(e.dataTransfer.items);
-    const hasValidFiles = items.some(item => {
-      if (item.kind === 'file') {
-        const file = item.getAsFile();
-        return file && (file.type.startsWith('audio/') || file.name.toLowerCase().endsWith('.lrc'));
-      }
-      return false;
-    });
-    
-    if (hasValidFiles) {
-      setIsDragOver(true);
-    }
+    // Always show drag over state to be user-friendly
+    // File type validation will happen on drop
+    setIsDragOver(true);
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     try {
       e.preventDefault();
+      e.stopPropagation();
     } catch {
       // Ignore passive event listener error
     }
-    setIsDragOver(false);
+    
+    // Only remove drag over state if we're actually leaving the drop zone
+    // Check if we're leaving to a child element
+    const relatedTarget = e.relatedTarget as Node | null;
+    const currentTarget = e.currentTarget as Node;
+    
+    if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
+      setIsDragOver(false);
+    }
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     try {
       e.preventDefault();
+      e.stopPropagation();
     } catch {
       // Ignore passive event listener error
     }
+    
     setIsDragOver(false);
-    if (e.dataTransfer.files) {
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      logger.info(`Dropped ${e.dataTransfer.files.length} files`);
       handleFileUpload(e.dataTransfer.files);
     }
   }, [handleFileUpload]);

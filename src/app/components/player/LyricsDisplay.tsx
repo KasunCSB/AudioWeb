@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AudioTrack } from './types';
 
 interface LyricsDisplayProps {
@@ -56,7 +56,7 @@ export const LyricsDisplay: React.FC<LyricsDisplayProps> = ({
   }, [currentTrack?.lrcLyrics, currentTime]);
 
   // Simple function to set manual scrolling state
-  const startManualScrolling = () => {
+  const startManualScrolling = useCallback(() => {
     setIsManualScrolling(true);
     
     // Clear existing timeout
@@ -64,29 +64,39 @@ export const LyricsDisplay: React.FC<LyricsDisplayProps> = ({
       clearTimeout(manualScrollTimeoutRef.current);
     }
     
-    // Reset to auto-scroll after 3 seconds
+    // Set new timeout to resume auto-scrolling after 3 seconds
     manualScrollTimeoutRef.current = setTimeout(() => {
       setIsManualScrolling(false);
     }, 3000);
-  };
+  }, []);
 
   // Handle manual scrolling with mouse wheel (desktop only)
-  const handleWheel = (e: React.WheelEvent) => {
-    if (isMobile) return; // Disable wheel scrolling on mobile
-    
-    e.preventDefault();
-    
-    const scrollSpeed = 0.01;
-    const deltaY = e.deltaY * scrollSpeed;
-    
-    setScrollOffset(prev => {
-      const visibleLines = 6;
-      const maxOffset = Math.max(0, displayLines.length - visibleLines);
-      return Math.min(Math.max(prev + deltaY, 0), maxOffset);
-    });
-    
-    startManualScrolling();
-  };
+  // Use native event listener with passive: false to prevent scroll
+  useEffect(() => {
+    if (isMobile || !containerRef.current) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      
+      const scrollSpeed = 0.01;
+      const deltaY = e.deltaY * scrollSpeed;
+      
+      setScrollOffset(prev => {
+        const visibleLines = 6;
+        const maxOffset = Math.max(0, displayLines.length - visibleLines);
+        return Math.min(Math.max(prev + deltaY, 0), maxOffset);
+      });
+      
+      startManualScrolling();
+    };
+
+    const container = containerRef.current;
+    container.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [isMobile, displayLines.length, startManualScrolling]);
 
   // Handle mouse/touch drag
   const handleDragStart = (clientY: number) => {
@@ -292,7 +302,6 @@ export const LyricsDisplay: React.FC<LyricsDisplayProps> = ({
               msOverflowStyle: 'none', /* IE and Edge */
               touchAction: isMobile ? 'pan-y' : 'none' /* Allow vertical scrolling on mobile only */
             }}
-            onWheel={!isMobile ? handleWheel : undefined}
             onMouseDown={!isMobile ? handleMouseDown : undefined}
             onMouseMove={!isMobile ? handleMouseMove : undefined}
             onMouseUp={!isMobile ? handleMouseUp : undefined}

@@ -20,6 +20,7 @@ import { BackButton } from './BackButton';
 import { LottieAnimation } from './LottieAnimation';
 import { LyricsDisplay } from './LyricsDisplay';
 import { PlayerStyles } from './PlayerStyles';
+import { getFileInputAcceptAttribute } from '@/utils/audioUtils';
 
 const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = false }) => {
   // State management
@@ -52,6 +53,14 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentTrack = playlist[currentTrackIndex];
+  
+  // Log the accept attribute for debugging
+  useEffect(() => {
+    if (fileInputRef.current) {
+      console.log('File input accept attribute:', fileInputRef.current.accept);
+      console.log('Number of formats:', fileInputRef.current.accept.split(',').length);
+    }
+  }, []);
 
   // Shuffle utility function
   const generateShuffleQueue = useCallback((excludeCurrentIndex?: number) => {
@@ -344,7 +353,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
         ref={fileInputRef}
         type="file"
         multiple
-        accept="audio/*,.lrc"
+        accept={getFileInputAcceptAttribute()}
         onChange={handleFileInputChange}
         className="hidden"
       />

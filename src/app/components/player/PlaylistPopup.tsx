@@ -10,6 +10,7 @@ interface PlaylistPopupProps {
   onMouseDown: (e: React.MouseEvent) => void;
   onSelectTrack: (index: number) => void;
   onRemoveTrack: (index: number) => void;
+  onAddTracks: () => void;
   isPlaying?: boolean;
   isShuffling?: boolean;
 }
@@ -22,6 +23,7 @@ export const PlaylistPopup: React.FC<PlaylistPopupProps> = ({
   onMouseDown,
   onSelectTrack,
   onRemoveTrack,
+  onAddTracks,
   isPlaying = false,
   isShuffling = false
 }) => {
@@ -39,6 +41,7 @@ export const PlaylistPopup: React.FC<PlaylistPopupProps> = ({
       position={position}
       onClose={onClose}
       onMouseDown={onMouseDown}
+      onAdd={onAddTracks}
       title={`Playlist (${playlist.length} songs)`}
       minWidth={380}
       minHeight={480}

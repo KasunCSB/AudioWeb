@@ -15,6 +15,7 @@ export const LyricsDisplay: React.FC<LyricsDisplayProps> = ({
   const [dragStart, setDragStart] = useState({ y: 0, scrollOffset: 0 });
   const [isManualScrolling, setIsManualScrolling] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [lastTrackId, setLastTrackId] = useState<string | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const manualScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -218,12 +219,13 @@ export const LyricsDisplay: React.FC<LyricsDisplayProps> = ({
     }
   }, [currentLineIndex, isManualScrolling, displayLines.length, isMobile]);
 
-  // Reset when track changes
+  // Reset when track changes (compare by ID to avoid false positives from object recreation)
   useEffect(() => {
-    if (currentTrack) {
+    if (currentTrack && currentTrack.id !== lastTrackId) {
       setScrollOffset(0);
       setIsDragging(false);
       setIsManualScrolling(false);
+      setLastTrackId(currentTrack.id);
       
       // Clear any pending timeouts
       if (manualScrollTimeoutRef.current) {
@@ -231,7 +233,7 @@ export const LyricsDisplay: React.FC<LyricsDisplayProps> = ({
         manualScrollTimeoutRef.current = null;
       }
     }
-  }, [currentTrack]);
+  }, [currentTrack, lastTrackId]);
 
   // Add global mouse move and up listeners when dragging (desktop only)
   useEffect(() => {

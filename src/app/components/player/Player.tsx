@@ -85,7 +85,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
 
     const currentTrack = playlist[currentTrackIndex];
     
-    // Separate current track from others
+    // Separate current track from others (exclude by index to preserve object reference)
     const otherTracks = playlist.filter((_, index) => index !== currentTrackIndex);
     
     // Fisher-Yates shuffle on other tracks
@@ -94,11 +94,18 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
       [otherTracks[i], otherTracks[j]] = [otherTracks[j], otherTracks[i]];
     }
     
-    // Put current track at the beginning and set shuffled order
-    const shuffledPlaylist = [currentTrack, ...otherTracks].map((track, index) => ({
-      ...track,
-      isActive: index === 0
-    }));
+    // Put current track at the beginning (preserve exact object reference)
+    // Update isActive for other tracks only
+    const shuffledPlaylist = [
+      currentTrack, // Keep exact reference to avoid triggering track change effects
+      ...otherTracks.map(track => ({
+        ...track,
+        isActive: false
+      }))
+    ];
+    
+    // Ensure current track remains active
+    shuffledPlaylist[0] = { ...currentTrack, isActive: true };
     
     setPlaylist(shuffledPlaylist);
     setCurrentTrackIndex(0);
@@ -184,7 +191,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
   }, []);
 
   // Custom hooks
-  const { audioRef, handlePlayPause, handleProgressChange } = useAudioManager(
+  const { audioRef, handlePlayPause, handleSeek } = useAudioManager(
     playlist,
     currentTrackIndex,
     isPlaying,
@@ -271,6 +278,10 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
     }
   };
 
+  const handleAddTracks = () => {
+    fileInputRef.current?.click();
+  };
+
   const containerClass = asPage 
     ? "min-h-screen bg-black overflow-hidden" 
     : "fixed left-0 right-0 bottom-0 bg-black overflow-hidden z-40" + " top-[calc(4.5rem-1px)]"; // Start 1px higher to cover navbar border
@@ -293,7 +304,35 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
 
       {/* Player UI - only shown when visible */}
       {isVisible && (
-    <div className={containerClass}>
+    <div 
+      className={containerClass}
+      onDragOver={playlist.length > 0 ? handleDragOver : undefined}
+      onDragLeave={playlist.length > 0 ? handleDragLeave : undefined}
+      onDrop={playlist.length > 0 ? handleDrop : undefined}
+    >
+      {/* Drag and Drop Overlay - Only show when tracks are loaded */}
+      {playlist.length > 0 && isDragOver && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+          style={{
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          <div className="text-center space-y-4 p-8">
+            <div className="w-20 h-20 mx-auto rounded-full bg-white/20 flex items-center justify-center animate-pulse">
+              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-2xl font-semibold text-white mb-2">Add More Tracks</h3>
+              <p className="text-white/70 text-lg">Drop files to add them to your playlist</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main 
         className="w-full relative flex flex-col items-center justify-start pt-4 sm:pt-6 pb-4 sm:pb-6 overflow-y-auto custom-scrollbar-auto"
         style={{
@@ -330,10 +369,10 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
               <AlbumArt
                 currentTrack={currentTrack}
                 onUploadClick={() => fileInputRef.current?.click()}
-                isDragOver={isDragOver}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
+                isDragOver={!currentTrack && isDragOver}
+                onDragOver={!currentTrack ? handleDragOver : undefined}
+                onDragLeave={!currentTrack ? handleDragLeave : undefined}
+                onDrop={!currentTrack ? handleDrop : undefined}
               />
 
               {currentTrack && (
@@ -341,7 +380,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                   <ProgressBar
                     currentTime={currentTime}
                     duration={duration}
-                    onProgressChange={handleProgressChange}
+                    onSeek={handleSeek}
                   />
 
                   <MainControls
@@ -404,10 +443,10 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                 <AlbumArt
                   currentTrack={currentTrack}
                   onUploadClick={() => fileInputRef.current?.click()}
-                  isDragOver={isDragOver}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
+                  isDragOver={!currentTrack && isDragOver}
+                  onDragOver={!currentTrack ? handleDragOver : undefined}
+                  onDragLeave={!currentTrack ? handleDragLeave : undefined}
+                  onDrop={!currentTrack ? handleDrop : undefined}
                 />
               </div>
             </div>
@@ -427,7 +466,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                   <ProgressBar
                     currentTime={currentTime}
                     duration={duration}
-                    onProgressChange={handleProgressChange}
+                    onSeek={handleSeek}
                   />
                 </div>
 
@@ -511,6 +550,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
         onMouseDown={(e) => handleMouseDown('playlist', e)}
         onSelectTrack={selectTrack}
         onRemoveTrack={removeTrack}
+        onAddTracks={handleAddTracks}
         isPlaying={isPlaying}
         isShuffling={isShuffling}
       />

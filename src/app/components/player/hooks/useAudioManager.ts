@@ -21,6 +21,76 @@ export const useAudioManager = (
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const filtersRef = useRef<BiquadFilterNode[]>([]);
+  const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isFadingRef = useRef<boolean>(false);
+
+  // Fade in audio over specified duration
+  const fadeIn = useCallback((duration: number = 800) => {
+    const audio = audioRef.current;
+    const gainNode = gainNodeRef.current;
+    const audioContext = audioContextRef.current;
+    
+    if (!audio || !gainNode || !audioContext) {
+      // Fallback if Web Audio API not available
+      if (audio) {
+        audio.volume = volume / 100;
+      }
+      return;
+    }
+
+    isFadingRef.current = true;
+    const currentTime = audioContext.currentTime;
+    const targetVolume = volume / 100;
+    
+    // Start from 0 and fade to target volume
+    gainNode.gain.cancelScheduledValues(currentTime);
+    gainNode.gain.setValueAtTime(0, currentTime);
+    gainNode.gain.linearRampToValueAtTime(targetVolume, currentTime + duration / 1000);
+    
+    // Clear fading flag after fade completes
+    if (fadeTimeoutRef.current) {
+      clearTimeout(fadeTimeoutRef.current);
+    }
+    fadeTimeoutRef.current = setTimeout(() => {
+      isFadingRef.current = false;
+    }, duration);
+  }, [volume]);
+
+  // Fade out audio over specified duration
+  const fadeOut = useCallback((duration: number = 800): Promise<void> => {
+    return new Promise((resolve) => {
+      const audio = audioRef.current;
+      const gainNode = gainNodeRef.current;
+      const audioContext = audioContextRef.current;
+      
+      if (!audio || !gainNode || !audioContext) {
+        // Fallback if Web Audio API not available
+        if (audio) {
+          audio.volume = 0;
+        }
+        resolve();
+        return;
+      }
+
+      isFadingRef.current = true;
+      const currentTime = audioContext.currentTime;
+      const currentVolume = gainNode.gain.value;
+      
+      // Fade from current volume to 0
+      gainNode.gain.cancelScheduledValues(currentTime);
+      gainNode.gain.setValueAtTime(currentVolume, currentTime);
+      gainNode.gain.linearRampToValueAtTime(0, currentTime + duration / 1000);
+      
+      // Wait for fade to complete
+      if (fadeTimeoutRef.current) {
+        clearTimeout(fadeTimeoutRef.current);
+      }
+      fadeTimeoutRef.current = setTimeout(() => {
+        isFadingRef.current = false;
+        resolve();
+      }, duration);
+    });
+  }, []);
 
   // Initialize audio context and equalizer
   useEffect(() => {
@@ -60,6 +130,9 @@ export const useAudioManager = (
       logger.info('Web Audio API initialized successfully');
 
       return () => {
+        if (fadeTimeoutRef.current) {
+          clearTimeout(fadeTimeoutRef.current);
+        }
         if (audioContext.state !== 'closed') {
           audioContext.close().catch((err) => {
             logger.error('Error closing audio context:', err);
@@ -131,7 +204,8 @@ export const useAudioManager = (
 
         audio.play()
           .then(() => {
-            logger.debug('Auto-play started for new track');
+            fadeIn(800); // Fade in when auto-playing new track
+            logger.debug('Auto-play started for new track with fade in');
           })
           .catch((error) => {
             logger.error('Failed to auto-play:', error);
@@ -139,7 +213,7 @@ export const useAudioManager = (
           });
       }
     }
-  }, [playlist, currentTrackIndex, isPlaying, setIsPlaying]);
+  }, [playlist, currentTrackIndex, isPlaying, setIsPlaying, fadeIn]);
 
   // Audio event listeners
   useEffect(() => {
@@ -222,9 +296,12 @@ export const useAudioManager = (
     if (!audio || !currentTrack) return;
 
     if (isPlaying) {
-      audio.pause();
-      setIsPlaying(false);
-      logger.debug('Playback paused');
+      // Fade out before pausing
+      fadeOut(800).then(() => {
+        audio.pause();
+        setIsPlaying(false);
+        logger.debug('Playback paused with fade out');
+      });
     } else {
       // Resume AudioContext if suspended (required for Chromium-based browsers)
       if (audioContextRef.current?.state === 'suspended') {
@@ -244,7 +321,8 @@ export const useAudioManager = (
       audio.play()
         .then(() => {
           setIsPlaying(true);
-          logger.debug('Playback started');
+          fadeIn(800); // Fade in after starting playback
+          logger.debug('Playback started with fade in');
         })
         .catch((error) => {
           logger.error('Failed to play audio:', error);
@@ -256,7 +334,7 @@ export const useAudioManager = (
           }
         });
     }
-  }, [isPlaying, playlist, currentTrackIndex, setIsPlaying]);
+  }, [isPlaying, playlist, currentTrackIndex, setIsPlaying, fadeIn, fadeOut]);
 
   const handleProgressChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const audio = audioRef.current;
@@ -267,9 +345,18 @@ export const useAudioManager = (
     setCurrentTime(newTime);
   }, [setCurrentTime]);
 
+  const handleSeek = useCallback((time: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    audio.currentTime = time;
+    setCurrentTime(time);
+  }, [setCurrentTime]);
+
   return {
     audioRef,
     handlePlayPause,
-    handleProgressChange
+    handleProgressChange,
+    handleSeek
   };
 };

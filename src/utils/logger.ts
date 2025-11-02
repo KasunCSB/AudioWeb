@@ -1,6 +1,9 @@
 /**
  * Centralized logging utility for AudioWeb
- * Provides consistent logging with levels and formatting
+ * Provides clean, minimal logging output
+ * 
+ * Format: Context: message
+ * Example: AudioManager: Initializing Web Audio API
  */
 
 import { DEBUG_LOGGING, LOG_LEVELS } from '@/config/constants';
@@ -48,11 +51,10 @@ class Logger {
   }
 
   /**
-   * Internal log method
+   * Internal log method with cleaner formatting
    */
   private log(level: LogLevel, message: string, ...args: unknown[]): void {
-    const timestamp = new Date().toISOString();
-    const prefix = `[${timestamp}] [${level.toUpperCase()}] [${this.context}]`;
+    const prefix = `${this.context}:`;
     
     switch (level) {
       case 'error':
@@ -74,7 +76,7 @@ class Logger {
    * Log the start of an operation
    */
   start(operation: string): void {
-    this.debug(`Starting: ${operation}`);
+    this.debug(operation);
   }
 
   /**
@@ -82,9 +84,9 @@ class Logger {
    */
   complete(operation: string, duration?: number): void {
     if (duration !== undefined) {
-      this.debug(`Completed: ${operation} (${duration}ms)`);
+      this.debug(`${operation} (${duration}ms)`);
     } else {
-      this.debug(`Completed: ${operation}`);
+      this.debug(operation);
     }
   }
 
@@ -92,7 +94,7 @@ class Logger {
    * Log a performance metric
    */
   performance(metric: string, value: number, unit: string = 'ms'): void {
-    this.debug(`Performance - ${metric}: ${value}${unit}`);
+    this.debug(`${metric}: ${value}${unit}`);
   }
 }
 

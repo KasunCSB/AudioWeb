@@ -13,6 +13,7 @@ interface ResizablePopupProps {
   minHeight?: number;
   maxWidth?: number;
   maxHeight?: number;
+  onAdd?: () => void;
 }
 
 export const ResizablePopup: React.FC<ResizablePopupProps> = ({
@@ -27,7 +28,8 @@ export const ResizablePopup: React.FC<ResizablePopupProps> = ({
   minWidth = 320,
   minHeight = 200,
   maxWidth,
-  maxHeight
+  maxHeight,
+  onAdd
 }) => {
   const [size, setSize] = useState({ 
     width: Math.max(minWidth, 400), 
@@ -146,14 +148,30 @@ export const ResizablePopup: React.FC<ResizablePopupProps> = ({
             onMouseDown={onMouseDown}
           >
             <h2 className="text-xl font-semibold text-white">{title}</h2>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all duration-200"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              {onAdd && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAdd();
+                  }}
+                  className="p-2 rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all duration-200"
+                  title="Add more tracks"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-2 rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all duration-200"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="scroll-content custom-scrollbar" ref={scrollContentRef}>
             {children}

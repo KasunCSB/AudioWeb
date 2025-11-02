@@ -4,9 +4,9 @@ interface AlbumArtProps {
   currentTrack: AudioTrack | null;
   onUploadClick: () => void;
   isDragOver: boolean;
-  onDragOver: (e: React.DragEvent) => void;
-  onDragLeave: (e: React.DragEvent) => void;
-  onDrop: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragLeave?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
 }
 
 export const AlbumArt: React.FC<AlbumArtProps> = ({

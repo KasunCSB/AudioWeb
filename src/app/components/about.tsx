@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import Image from 'next/image';
 
 interface AboutPopupProps {
@@ -9,7 +9,30 @@ interface AboutPopupProps {
   isPlaying?: boolean;
 }
 
-const Logo: React.FC = () => {
+const Logo: React.FC<{ isPlaying?: boolean }> = ({ isPlaying = false }) => {
+  const [showAnimations, setShowAnimations] = React.useState(false);
+  const [isFadingOut, setIsFadingOut] = React.useState(false);
+
+  // Handle fade-in with delay when playing starts
+  React.useEffect(() => {
+    if (isPlaying) {
+      // Longer delay before starting animations
+      const timer = setTimeout(() => {
+        setShowAnimations(true);
+        setIsFadingOut(false);
+      }, 400);
+      return () => clearTimeout(timer);
+    } else {
+      // Start fade-out animation
+      setIsFadingOut(true);
+      // Remove animations after fade-out completes
+      const timer = setTimeout(() => {
+        setShowAnimations(false);
+      }, 2000); // Wait longer for fade-out to complete
+      return () => clearTimeout(timer);
+    }
+  }, [isPlaying]);
+
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
   };
@@ -19,18 +42,98 @@ const Logo: React.FC = () => {
   };
 
   return (
-    <div className="w-24 h-24 mx-auto mb-6">
-      <Image
-        src="/images/aw-logo.svg"
-        alt="AudioWeb Logo"
-        width={96}
-        height={96}
-        className="w-full h-full object-contain select-none"
-        onContextMenu={handleContextMenu}
-        onDragStart={handleDragStart}
-        draggable={false}
-        style={{ userSelect: 'none', pointerEvents: 'none' }}
-      />
+    <div className="w-24 h-24 mx-auto mb-6 relative">
+      {/* Animated visualization when playing */}
+      {showAnimations && (
+        <>
+          {/* Large outer pulsing ring 1 - Purple color */}
+          <div 
+            className="absolute -inset-2 rounded-full border-4 border-purple-500"
+            style={{
+              opacity: isFadingOut ? 0 : 0.6,
+              animation: isFadingOut 
+                ? 'pulse-ring 2s ease-out infinite' 
+                : 'pulse-ring 2s ease-out infinite, fade-in-scale 0.5s ease-out',
+              transition: 'opacity 1.8s ease-out',
+            }}
+          />
+          
+          {/* Large outer pulsing ring 2 - delayed - Blue color */}
+          <div 
+            className="absolute -inset-2 rounded-full border-4 border-blue-400"
+            style={{
+              opacity: isFadingOut ? 0 : 0.4,
+              animation: isFadingOut 
+                ? 'pulse-ring 2s ease-out infinite 1s' 
+                : 'pulse-ring 2s ease-out infinite 1s, fade-in-scale 0.6s ease-out',
+              transition: 'opacity 2s ease-out',
+            }}
+          />
+          
+          {/* Thick rotating circle border - CLOCKWISE - Purple */}
+          <div 
+            className="absolute -inset-1 border-4 rounded-full"
+            style={{
+              opacity: isFadingOut ? 0 : 1,
+              animation: isFadingOut 
+                ? 'rotate-bars 3s linear infinite' 
+                : 'rotate-bars 3s linear infinite, fade-in-scale 0.4s ease-out',
+              borderColor: 'transparent',
+              borderTopColor: 'rgb(168, 85, 247)',
+              borderRightColor: 'rgb(168, 85, 247)',
+              transition: 'opacity 1.6s ease-out',
+            }}
+          />
+
+          {/* Thick counter-rotating circle border - COUNTER-CLOCKWISE - Blue */}
+          <div 
+            className="absolute inset-0 border-4 rounded-full"
+            style={{
+              opacity: isFadingOut ? 0 : 1,
+              animation: isFadingOut 
+                ? 'rotate-bars 2s linear infinite reverse' 
+                : 'rotate-bars 2s linear infinite reverse, fade-in-scale 0.5s ease-out',
+              borderColor: 'transparent',
+              borderBottomColor: 'rgb(96, 165, 250)',
+              borderLeftColor: 'rgb(96, 165, 250)',
+              transition: 'opacity 1.7s ease-out',
+            }}
+          />
+
+          {/* Strong inner glow - Purple/Blue */}
+          <div 
+            className="absolute inset-6 rounded-full bg-purple-400"
+            style={{
+              opacity: isFadingOut ? 0 : 0.3,
+              animation: isFadingOut 
+                ? 'pulse-glow 1.5s ease-in-out infinite alternate' 
+                : 'pulse-glow 1.5s ease-in-out infinite alternate, fade-in-scale 0.7s ease-out',
+              boxShadow: '0 0 10px rgba(192, 132, 252, 0.6)',
+              transition: 'opacity 2s ease-out',
+            }}
+          />
+        </>
+      )}
+
+      {/* Logo with speaker bounce animation */}
+      <div 
+        className="relative z-10"
+        style={isPlaying ? {
+          animation: 'speaker-bounce 0.8s ease-in-out infinite',
+        } : {}}
+      >
+        <Image
+          src="/images/aw-logo.svg"
+          alt="AudioWeb Logo"
+          width={96}
+          height={96}
+          className="w-full h-full object-contain select-none"
+          onContextMenu={handleContextMenu}
+          onDragStart={handleDragStart}
+          draggable={false}
+          style={{ userSelect: 'none', pointerEvents: 'none' }}
+        />
+      </div>
     </div>
   );
 };
@@ -52,44 +155,7 @@ const TechStackItem: React.FC<{
 );
 
 export const AboutPopup: React.FC<AboutPopupProps> = ({ show, onClose, isPlaying = false }) => {
-  // Play a pleasant sound effect when popup opens (only if music is playing)
-  useEffect(() => {
-    if (show && isPlaying) {
-      try {
-        // Create a brief, pleasant sound effect
-        const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-        
-        // Create a pleasant ascending chord
-        const playNote = (frequency: number, startTime: number, duration: number) => {
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          
-          oscillator.frequency.setValueAtTime(frequency, startTime);
-          oscillator.type = 'sine';
-          
-          // Smooth envelope
-          gainNode.gain.setValueAtTime(0, startTime);
-          gainNode.gain.linearRampToValueAtTime(0.08, startTime + 0.02);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-          
-          oscillator.start(startTime);
-          oscillator.stop(startTime + duration);
-        };
-        
-        // Play a pleasant chord progression: C - E - G (C major chord)
-        const currentTime = audioContext.currentTime;
-        playNote(523.25, currentTime, 0.3); // C5
-        playNote(659.25, currentTime + 0.1, 0.3); // E5
-        playNote(783.99, currentTime + 0.2, 0.3); // G5
-        
-      } catch {
-        // Silently fail if audio context is not available
-      }
-    }
-  }, [show, isPlaying]);
+  // Removed sound effect when popup opens
 
   if (!show) return null;
 
@@ -131,7 +197,7 @@ export const AboutPopup: React.FC<AboutPopupProps> = ({ show, onClose, isPlaying
         {/* Content */}
         <div className="text-center space-y-6">
           {/* Logo */}
-          <Logo />
+          <Logo isPlaying={isPlaying} />
 
           {/* Copyright */}
           <div className="flex items-center justify-center gap-2 text-white/80">
@@ -237,15 +303,8 @@ export const AboutPopup: React.FC<AboutPopupProps> = ({ show, onClose, isPlaying
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 10.956.557-.085-.003-.204-.003-.446v-1.611c-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.997.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22v3.293c0 .319-.192.694-.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
               </svg>
-              <span className="font-medium">See me on GitHub</span>
+              <span className="font-medium">See the project on GitHub</span>
             </a>
-          </div>
-
-          {/* AI Credit */}
-          <div className="text-center pt-4 border-t border-white/10">
-            <p className="text-white/60 text-xs italic">
-              This project might not be possible without the help of AI.
-            </p>
           </div>
         </div>
       </div>

@@ -124,6 +124,8 @@ export interface PlayerProps {
   isVisible?: boolean;
   onClose?: () => void;
   asPage?: boolean;
+  onPlayingChange?: (isPlaying: boolean) => void;
+  onTrackChange?: (currentTrack: AudioTrack | null, nextTrack: AudioTrack | null) => void;
 }
 
 export interface PopupPositions {

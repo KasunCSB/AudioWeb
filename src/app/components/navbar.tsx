@@ -1,16 +1,48 @@
 'use client';
 
-import type { NextPage } from 'next';
+import React from 'react';
 import Image from 'next/image';
 import { useState } from 'react';
 import { AboutPopup } from './about';
 import { SupportPopup } from './contact';
+import { NowPlayingBar } from './NowPlayingBar';
 
 // Import Inter font from Google Fonts (add this to your _app.tsx or layout if not already)
 import { Inter } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'] });
 
-const Navbar: NextPage = () => {
+interface AudioTrack {
+  id: string;
+  title: string;
+  artist: string;
+  album?: string;
+  albumArt?: string;
+  duration: number;
+}
+
+interface NavbarProps {
+  isPlaying?: boolean;
+  currentTrack?: AudioTrack | null;
+  nextTrack?: AudioTrack | null;
+  isPlayerVisible?: boolean; // New prop to control navbar controls visibility
+  onPlayPause?: () => void;
+  onNext?: () => void;
+  onPrevious?: () => void;
+  showNowPlaying?: boolean;
+  onOpenPlayer?: () => void;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ 
+  isPlaying = false,
+  currentTrack = null,
+  nextTrack = null,
+  isPlayerVisible = false,
+  onPlayPause,
+  onNext,
+  onPrevious,
+  showNowPlaying = false,
+  onOpenPlayer
+}) => {
   const [open, setOpen] = useState(false);
   const [logoPressed, setLogoPressed] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -35,8 +67,10 @@ const Navbar: NextPage = () => {
           margin: 0,
         }}
       >
-      {/* Left: Logo + Title */}
-      <div className="flex items-center space-x-3 px-2">
+      {/* Left: Logo + Title - Hidden on mobile when mini player is active */}
+      <div className={`flex items-center space-x-3 px-2 transition-all duration-300 ${
+        currentTrack ? 'hidden md:flex' : 'flex'
+      }`}>
         <span
           className={`
             transition-transform duration-200 cursor-pointer
@@ -58,11 +92,33 @@ const Navbar: NextPage = () => {
             onContextMenu={e => e.preventDefault()}
           />
         </span>
-        <span>
+        <span className={showNowPlaying && currentTrack ? 'hidden md:block' : ''}>
           <h1 className="text-base md:text-xl font-medium text-white tracking-tight select-none m-0">
             AudioWeb Music Player
           </h1>
         </span>
+      </div>
+
+      {/* Center: Now Playing Bar - Full width on mobile when active, max-w-2xl on desktop */}
+      <div 
+        className={`flex items-center gap-2 md:gap-3 mx-2 md:mx-4 transition-all duration-500 ease-in-out ${
+          currentTrack
+            ? 'opacity-100 scale-100 flex-1 md:max-w-2xl' 
+            : 'opacity-0 scale-95 pointer-events-none flex-1 md:max-w-2xl'
+        }`}
+      >
+        {currentTrack && (
+          <NowPlayingBar
+            currentTrack={currentTrack}
+            nextTrack={nextTrack}
+            isPlaying={isPlaying}
+            isPlayerVisible={isPlayerVisible}
+            onPlayPause={onPlayPause!}
+            onNext={onNext!}
+            onPrevious={onPrevious!}
+            onOpenPlayer={onOpenPlayer}
+          />
+        )}
       </div>
 
       {/* Right: Links (hidden on mobile) */}
@@ -148,7 +204,8 @@ const Navbar: NextPage = () => {
     <>
       <AboutPopup 
         show={showAbout} 
-        onClose={() => setShowAbout(false)} 
+        onClose={() => setShowAbout(false)}
+        isPlaying={isPlaying}
       />
       <SupportPopup 
         show={showContact} 

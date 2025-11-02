@@ -186,8 +186,10 @@ export const LyricsDisplay: React.FC<LyricsDisplayProps> = ({
               const expectedSpacing = isMobile ? 3.5 : 4; // Increased mobile spacing
               const adjustmentFactor = actualLineSpacingRem / expectedSpacing;
               
-              // Calculate target position - position current line 3 lines from top
-              const targetVisiblePosition = 3; // Fixed position: 3 lines from top
+              // Calculate target position - center the current line
+              // On mobile, use 2 lines from top (more centered for small screens)
+              // On desktop, use 3 lines from top
+              const targetVisiblePosition = isMobile ? 2 : 3;
               const rawTargetOffset = Math.max(0, currentLineIndex - targetVisiblePosition);
               const adjustedTargetOffset = rawTargetOffset * adjustmentFactor;
               
@@ -202,7 +204,7 @@ export const LyricsDisplay: React.FC<LyricsDisplayProps> = ({
           }
           
           // Fallback to simple positioning if measurement fails
-          const targetVisiblePosition = 3; // Fixed position: 3 lines from top
+          const targetVisiblePosition = isMobile ? 2 : 3;
           const visibleLines = isMobile ? 5 : 6;
           const targetScrollOffset = Math.max(0, currentLineIndex - targetVisiblePosition);
           const maxScrollOffset = Math.max(0, displayLines.length - visibleLines);

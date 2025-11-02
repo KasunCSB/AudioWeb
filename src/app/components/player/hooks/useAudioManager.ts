@@ -122,10 +122,24 @@ export const useAudioManager = (
       
       // Auto-play if playing state is true
       if (isPlaying) {
-        audio.play().catch(console.error);
+        // Resume AudioContext if suspended (Chromium requirement)
+        if (audioContextRef.current?.state === 'suspended') {
+          audioContextRef.current.resume().catch((err) => {
+            logger.error('Failed to resume audio context:', err);
+          });
+        }
+
+        audio.play()
+          .then(() => {
+            logger.debug('Auto-play started for new track');
+          })
+          .catch((error) => {
+            logger.error('Failed to auto-play:', error);
+            setIsPlaying(false); // Update state if auto-play fails
+          });
       }
     }
-  }, [playlist, currentTrackIndex, isPlaying]);
+  }, [playlist, currentTrackIndex, isPlaying, setIsPlaying]);
 
   // Audio event listeners
   useEffect(() => {
@@ -217,8 +231,16 @@ export const useAudioManager = (
 
     if (isPlaying) {
       audio.pause();
+      setIsPlaying(false);
       logger.debug('Playback paused');
     } else {
+      // Resume AudioContext if suspended (required for Chromium-based browsers)
+      if (audioContextRef.current?.state === 'suspended') {
+        audioContextRef.current.resume().catch((err) => {
+          logger.error('Failed to resume audio context:', err);
+        });
+      }
+
       // Ensure the correct audio source is loaded
       if (audio.src !== currentTrack.url) {
         logger.debug('Loading new track:', currentTrack.title);
@@ -226,16 +248,23 @@ export const useAudioManager = (
         audio.load();
       }
       
-      audio.play().catch((error) => {
-        logger.error('Failed to play audio:', error);
-        // Handle autoplay policies
-        if (error.name === 'NotAllowedError') {
-          logger.warn('Autoplay was prevented by browser policy');
-          // You can show a user-friendly message here
-        }
-      });
+      // Only update state if play() succeeds
+      audio.play()
+        .then(() => {
+          setIsPlaying(true);
+          logger.debug('Playback started');
+        })
+        .catch((error) => {
+          logger.error('Failed to play audio:', error);
+          setIsPlaying(false); // Ensure state stays false if play fails
+          
+          // Handle autoplay policies
+          if (error.name === 'NotAllowedError') {
+            logger.warn('Autoplay was prevented by browser policy');
+            console.warn('User interaction required to start playback');
+          }
+        });
     }
-    setIsPlaying(!isPlaying);
   }, [isPlaying, playlist, currentTrackIndex, setIsPlaying]);
 
   const handleProgressChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

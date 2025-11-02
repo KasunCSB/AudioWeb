@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import Navbar from '../navbar';
 import { AudioTrack, PlayerProps, EqualizerSettings } from './types';
 import { useAudioManager } from './hooks/useAudioManager';
 import { useDragHandler } from './hooks/useDragHandler';
@@ -23,7 +22,7 @@ import { PlayerStyles } from './PlayerStyles';
 import { getFileInputAcceptAttribute } from '@/utils/audioUtils';
 import { UI_CONFIG } from '@/config/constants';
 
-const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = false }) => {
+const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = false, onPlayingChange, onTrackChange }) => {
   // State management
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -55,13 +54,22 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentTrack = playlist[currentTrackIndex];
   
-  // Log the accept attribute for debugging
+  // Notify parent component when playing state changes
   useEffect(() => {
-    if (fileInputRef.current) {
-      console.log('File input accept attribute:', fileInputRef.current.accept);
-      console.log('Number of formats:', fileInputRef.current.accept.split(',').length);
+    if (onPlayingChange) {
+      onPlayingChange(isPlaying);
     }
-  }, []);
+  }, [isPlaying, onPlayingChange]);
+
+  // Notify parent component when track changes
+  useEffect(() => {
+    if (onTrackChange && playlist.length > 0) {
+      const current = playlist[currentTrackIndex] || null;
+      const nextIndex = currentTrackIndex < playlist.length - 1 ? currentTrackIndex + 1 : (repeatMode === 1 ? 0 : -1);
+      const next = nextIndex >= 0 ? playlist[nextIndex] : null;
+      onTrackChange(current, next);
+    }
+  }, [currentTrackIndex, playlist, repeatMode, onTrackChange]);
 
   // Shuffle utility function
   const generateShuffleQueue = useCallback((excludeCurrentIndex?: number) => {
@@ -333,6 +341,31 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
     currentTime
   });
 
+  // Listen for custom events from navbar controls
+  useEffect(() => {
+    const handlePlayPauseEvent = () => {
+      handlePlayPause();
+    };
+
+    const handleNextEvent = () => {
+      handleNext();
+    };
+
+    const handlePreviousEvent = () => {
+      handlePrevious();
+    };
+
+    window.addEventListener('playerPlayPause', handlePlayPauseEvent);
+    window.addEventListener('playerNext', handleNextEvent);
+    window.addEventListener('playerPrevious', handlePreviousEvent);
+
+    return () => {
+      window.removeEventListener('playerPlayPause', handlePlayPauseEvent);
+      window.removeEventListener('playerNext', handleNextEvent);
+      window.removeEventListener('playerPrevious', handlePreviousEvent);
+    };
+  }, [handlePlayPause, handleNext, handlePrevious]);
+
   // Event handlers
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -340,16 +373,17 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
     }
   };
 
-  if (!isVisible) return null;
+  const containerClass = asPage 
+    ? "min-h-screen bg-black overflow-hidden" 
+    : "fixed left-0 right-0 bottom-0 bg-black overflow-hidden z-40" + " top-[calc(4.5rem-1px)]"; // Start 1px higher to cover navbar border
 
-  const containerClass = asPage ? "min-h-screen bg-black overflow-hidden" : "fixed inset-0 z-50 bg-black overflow-hidden";
-
+  // Always render audio element to keep playback alive, but hide UI when not visible
   return (
-    <div className={containerClass}>
-      <Navbar />
-      
+    <>
+      {/* Audio element always rendered to maintain playback */}
       <audio ref={audioRef} />
       
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -358,7 +392,10 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
         onChange={handleFileInputChange}
         className="hidden"
       />
-      
+
+      {/* Player UI - only shown when visible */}
+      {isVisible && (
+    <div className={containerClass}>
       <main 
         className="w-full relative flex flex-col items-center justify-start pt-4 sm:pt-6 pb-4 sm:pb-6 overflow-y-auto custom-scrollbar-auto"
         style={{
@@ -367,8 +404,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
           WebkitBackdropFilter: 'blur(16px) saturate(180%)',
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='40' height='40' fill='white' fill-opacity='0'/%3E%3Ccircle cx='20' cy='20' r='1' fill='white' fill-opacity='0.04'/%3E%3C/svg%3E")`,
           backgroundBlendMode: 'overlay',
-          height: '100vh',
-          marginTop: '4rem', // Account for navbar
+          height: 'calc(100vh - 4.5rem)', // Full height minus navbar
         }}
       >
         {/* Back Button */}
@@ -441,9 +477,9 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
             </div>
           </div>
 
-          {/* Right Section - Lyrics Area */}
+          {/* Right Section - Lyrics Area (Expanded to full height) */}
           {playlist.length > 0 && (
-            <div className="flex-1 flex flex-col gap-4 lg:gap-6 h-[calc(100vh-140px)] lg:h-[calc(100vh-120px)]">
+            <div className="flex-1 flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-120px)]">
               <div 
                 className="rounded-[20px] lg:rounded-[24px] p-4 lg:p-6 flex-1 overflow-y-auto custom-scrollbar-enhanced min-h-0"
                 style={{
@@ -458,84 +494,6 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                   currentTime={currentTime}
                 />
               </div>
-
-              {/* Desktop Up Next Preview */}
-              {playlist.length > 1 && (
-                <div 
-                  className="rounded-[16px] lg:rounded-[20px] p-3 lg:p-4 transition-all duration-200 flex-shrink-0"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    backdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-2 lg:mb-3">
-                    <h3 className="text-sm lg:text-base font-semibold text-white/80">
-                      Up Next {/* Debug: Playlist length: {playlist.length}, Current: {currentTrackIndex} */}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-6 h-6 lg:w-7 lg:h-7 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all duration-200 group"
-                        title="Add more tracks"
-                      >
-                        <svg className="w-3 h-3 lg:w-4 lg:h-4 text-white/60 group-hover:text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                      </button>
-                      {currentTrackIndex < playlist.length - 1 && (
-                        <button
-                          onClick={() => selectTrack(currentTrackIndex + 1)}
-                          className="w-6 h-6 lg:w-7 lg:h-7 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all duration-200 group"
-                          title="Play next track"
-                        >
-                          <svg className="w-3 h-3 lg:w-4 lg:h-4 text-white/60 group-hover:text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {currentTrackIndex < playlist.length - 1 ? (
-                    <div 
-                      className="flex items-center gap-3 lg:gap-4 cursor-pointer hover:bg-white/5 hover:scale-[1.02] rounded-lg p-2 -m-2 transition-all duration-200"
-                      onClick={() => selectTrack(currentTrackIndex + 1)}
-                    >
-                      <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg overflow-hidden flex-shrink-0">
-                        {playlist[currentTrackIndex + 1].albumArt ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img 
-                            src={playlist[currentTrackIndex + 1].albumArt} 
-                            alt="Album art" 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                            <svg className="w-5 h-5 lg:w-6 lg:h-6 text-white/60" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.814L4.5 13.93A1 1 0 014 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2a1 1 0 01.5-.069l3.883-2.884a1 1 0 011 0z"/>
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm lg:text-base font-medium text-white truncate">
-                          {playlist[currentTrackIndex + 1].title}
-                        </p>
-                        <p className="text-xs lg:text-sm text-white/60 truncate">
-                          {playlist[currentTrackIndex + 1].artist}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center py-4">
-                      <p className="text-sm text-white/60">
-                        {repeatMode === 1 ? "Will repeat this playlist" : repeatMode === 2 ? "Will repeat this track" : "End of playlist"}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -629,12 +587,12 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
 
                 {/* Lyrics Display */}
                 <div 
-                  className="w-full rounded-2xl p-4 sm:p-5 min-h-[150px] max-h-[300px] sm:max-h-[400px] overflow-y-auto"
+                  className="w-full rounded-2xl p-4 sm:p-5 flex-1 overflow-hidden"
                   style={{
                     background: 'rgba(255, 255, 255, 0.03)',
                     backdropFilter: 'blur(20px)',
                     border: '1px solid rgba(255, 255, 255, 0.05)',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
                   }}
                 >
                   <LyricsDisplay
@@ -642,82 +600,6 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                     currentTime={currentTime}
                   />
                 </div>
-
-                {/* Mobile Up Next Preview */}
-                {playlist.length > 1 && (
-                  <div 
-                    className="w-full rounded-2xl p-3 sm:p-4 transition-all duration-200"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(255, 255, 255, 0.05)',
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xs sm:text-sm font-semibold text-white/80">Up Next</h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all duration-200 group"
-                          title="Add more tracks"
-                        >
-                          <svg className="w-3 h-3 text-white/60 group-hover:text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </button>
-                        {currentTrackIndex < playlist.length - 1 && (
-                          <button
-                            onClick={() => selectTrack(currentTrackIndex + 1)}
-                            className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all duration-200 group"
-                            title="Play next track"
-                          >
-                            <svg className="w-3 h-3 text-white/60 group-hover:text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {currentTrackIndex < playlist.length - 1 ? (
-                      <div 
-                        className="flex items-center gap-3 cursor-pointer active:scale-95 transition-all duration-200 hover:bg-white/5 rounded-lg p-2 -m-2"
-                        onClick={() => selectTrack(currentTrackIndex + 1)}
-                      >
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden flex-shrink-0">
-                          {playlist[currentTrackIndex + 1].albumArt ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img 
-                              src={playlist[currentTrackIndex + 1].albumArt} 
-                              alt="Album art" 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white/60" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.814L4.5 13.93A1 1 0 014 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2a1 1 0 01.5-.069l3.883-2.884a1 1 0 011 0z"/>
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm sm:text-base font-medium text-white truncate">
-                            {playlist[currentTrackIndex + 1].title}
-                          </p>
-                          <p className="text-xs sm:text-sm text-white/60 truncate">
-                            {playlist[currentTrackIndex + 1].artist}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center py-3">
-                        <p className="text-xs sm:text-sm text-white/60">
-                          {repeatMode === 1 ? "Will repeat this playlist" : repeatMode === 2 ? "Will repeat this track" : "End of playlist"}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
               </>
             ) : null}
           </div>
@@ -757,6 +639,8 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
 
       <PlayerStyles />
     </div>
+      )}
+    </>
   );
 };
 

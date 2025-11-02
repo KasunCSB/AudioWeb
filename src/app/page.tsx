@@ -5,6 +5,15 @@ import Navbar from '@/app/components/navbar';
 import Player from '@/app/components/player/Player';
 import { useState } from 'react';
 
+interface AudioTrack {
+  id: string;
+  title: string;
+  artist: string;
+  album?: string;
+  albumArt?: string;
+  duration: number;
+}
+
 const Header = ({ onPlayClick }: { onPlayClick: () => void }) => (
   <section
     className="w-full relative flex flex-col items-center justify-center"
@@ -85,6 +94,9 @@ const Header = ({ onPlayClick }: { onPlayClick: () => void }) => (
 
 export default function Home() {
   const [isPlayerVisible, setIsPlayerVisible] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTrack, setCurrentTrack] = useState<AudioTrack | null>(null);
+  const [nextTrack, setNextTrack] = useState<AudioTrack | null>(null);
 
   const handlePlayClick = () => {
     setIsPlayerVisible(true);
@@ -94,13 +106,60 @@ export default function Home() {
     setIsPlayerVisible(false);
   };
 
+  const handleOpenPlayer = () => {
+    setIsPlayerVisible(true);
+  };
+
+  const handlePlayingChange = (playing: boolean) => {
+    setIsPlaying(playing);
+  };
+
+  const handleTrackChange = (current: AudioTrack | null, next: AudioTrack | null) => {
+    setCurrentTrack(current);
+    setNextTrack(next);
+  };
+
+  const handlePlayPause = () => {
+    // This will be passed down from Player
+    const event = new CustomEvent('playerPlayPause');
+    window.dispatchEvent(event);
+  };
+
+  const handleNext = () => {
+    const event = new CustomEvent('playerNext');
+    window.dispatchEvent(event);
+  };
+
+  const handlePrevious = () => {
+    const event = new CustomEvent('playerPrevious');
+    window.dispatchEvent(event);
+  };
+
   return (
     <div className="min-h-screen bg-black relative page-scroll">
-      <Navbar />
-      <main className="pt-[4.5rem] custom-scrollbar-auto"> {/* Account for fixed navbar */}
-        <Header onPlayClick={handlePlayClick} />
-      </main>
-      <Player isVisible={isPlayerVisible} onClose={handleClosePlayer} />
+      <Navbar 
+        isPlaying={isPlaying}
+        currentTrack={currentTrack}
+        nextTrack={nextTrack}
+        isPlayerVisible={isPlayerVisible}
+        showNowPlaying={!isPlayerVisible && currentTrack !== null}
+        onPlayPause={handlePlayPause}
+        onNext={handleNext}
+        onPrevious={handlePrevious}
+        onOpenPlayer={handleOpenPlayer}
+      />
+      {/* Hide home content when Player is visible to prevent showing through navbar */}
+      {!isPlayerVisible && (
+        <main className="pt-[4.5rem] custom-scrollbar-auto"> {/* Account for fixed navbar */}
+          <Header onPlayClick={handlePlayClick} />
+        </main>
+      )}
+      <Player 
+        isVisible={isPlayerVisible} 
+        onClose={handleClosePlayer}
+        onPlayingChange={handlePlayingChange}
+        onTrackChange={handleTrackChange}
+      />
     </div>
   );
 }

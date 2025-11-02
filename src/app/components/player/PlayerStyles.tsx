@@ -379,5 +379,19 @@ export const PlayerStyles = () => (
       40% { height: 70%; }
       80% { height: 50%; }
     }
+
+    /* Minimal shuffle animation - simple fade */
+    .shuffle-item {
+      animation: shuffle-fade 0.5s ease-out;
+    }
+
+    @keyframes shuffle-fade {
+      0% {
+        opacity: 0.3;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
   `}</style>
 );

@@ -28,18 +28,15 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState<number>(UI_CONFIG.VOLUME.DEFAULT);
-  const [isShuffled, setIsShuffled] = useState(false);
   const [repeatMode, setRepeatMode] = useState(0);
   const [playlist, setPlaylist] = useState<AudioTrack[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [shuffleQueue, setShuffleQueue] = useState<number[]>([]);
-  const [shuffleHistory, setShuffleHistory] = useState<number[]>([]);
-  const [shuffleIndex, setShuffleIndex] = useState(0);
   const [sleepTimer, setSleepTimer] = useState(0);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showEqualizer, setShowEqualizer] = useState(false);
   const [showSleepTimer, setShowSleepTimer] = useState(false);
   const [showVisualization, setShowVisualization] = useState(false);
+  const [isShuffling, setIsShuffling] = useState(false);
   const [equalizerSettings, setEqualizerSettings] = useState<EqualizerSettings>({
     bass: 0,
     mid: 0,
@@ -71,146 +68,80 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
     }
   }, [currentTrackIndex, playlist, repeatMode, onTrackChange]);
 
-  // Shuffle utility function
-  const generateShuffleQueue = useCallback((excludeCurrentIndex?: number) => {
-    const indices = Array.from({ length: playlist.length }, (_, i) => i);
-    if (excludeCurrentIndex !== undefined) {
-      indices.splice(excludeCurrentIndex, 1);
-    }
+  // Shuffle utility function - reorders the playlist
+  const shufflePlaylist = useCallback(() => {
+    if (playlist.length <= 1) return;
+
+    // Trigger shuffle animation
+    setIsShuffling(true);
+    setTimeout(() => setIsShuffling(false), 500);
+
+    const currentTrack = playlist[currentTrackIndex];
     
-    // Fisher-Yates shuffle
-    for (let i = indices.length - 1; i > 0; i--) {
+    // Separate current track from others
+    const otherTracks = playlist.filter((_, index) => index !== currentTrackIndex);
+    
+    // Fisher-Yates shuffle on other tracks
+    for (let i = otherTracks.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
+      [otherTracks[i], otherTracks[j]] = [otherTracks[j], otherTracks[i]];
     }
     
-    return indices;
-  }, [playlist.length]);
-
-  // Effect to generate shuffle queue when shuffle is enabled or playlist changes
-  useEffect(() => {
-    if (isShuffled && playlist.length > 1) {
-      const newQueue = generateShuffleQueue(currentTrackIndex);
-      setShuffleQueue(newQueue);
-      setShuffleHistory([currentTrackIndex]);
-      setShuffleIndex(0);
-    }
-  }, [isShuffled, playlist.length, generateShuffleQueue, currentTrackIndex]);
-
-  // Toggle shuffle function
-  const handleShuffleToggle = useCallback(() => {
-    const newShuffled = !isShuffled;
-    setIsShuffled(newShuffled);
+    // Put current track at the beginning and set shuffled order
+    const shuffledPlaylist = [currentTrack, ...otherTracks].map((track, index) => ({
+      ...track,
+      isActive: index === 0
+    }));
     
-    if (newShuffled && playlist.length > 1) {
-      // Enable shuffle - generate new queue
-      const newQueue = generateShuffleQueue(currentTrackIndex);
-      setShuffleQueue(newQueue);
-      setShuffleHistory([currentTrackIndex]);
-      setShuffleIndex(0);
-    } else {
-      // Disable shuffle - clear queue
-      setShuffleQueue([]);
-      setShuffleHistory([]);
-      setShuffleIndex(0);
-    }
-  }, [isShuffled, playlist.length, generateShuffleQueue, currentTrackIndex]);
+    setPlaylist(shuffledPlaylist);
+    setCurrentTrackIndex(0);
+  }, [playlist, currentTrackIndex]);
 
   // Navigation state helpers
   const canGoPrevious = useMemo(() => {
-    if (isShuffled) {
-      return shuffleHistory.length > 1;
-    }
     return currentTrackIndex > 0;
-  }, [isShuffled, shuffleHistory.length, currentTrackIndex]);
+  }, [currentTrackIndex]);
 
   const canGoNext = useMemo(() => {
-    if (isShuffled) {
-      return shuffleIndex < shuffleQueue.length - 1 || repeatMode === 1;
-    }
-    return currentTrackIndex < playlist.length - 1;
-  }, [isShuffled, shuffleIndex, shuffleQueue.length, repeatMode, currentTrackIndex, playlist.length]);
+    return currentTrackIndex < playlist.length - 1 || repeatMode === 1;
+  }, [currentTrackIndex, playlist.length, repeatMode]);
 
-  // Navigation handlers
+  // Navigation handlers - simple sequential playback
   const handleNext = useCallback(() => {
-    if (isShuffled && shuffleQueue.length > 0) {
-      // Shuffle mode
-      if (shuffleIndex < shuffleQueue.length - 1) {
-        // Move to next song in shuffle queue
-        const nextShuffleIndex = shuffleIndex + 1;
-        const nextTrackIndex = shuffleQueue[nextShuffleIndex];
-        
-        setShuffleIndex(nextShuffleIndex);
-        setCurrentTrackIndex(nextTrackIndex);
-        setShuffleHistory(prev => [...prev, nextTrackIndex]);
-        setPlaylist(prev => prev.map((track, index) => ({
-          ...track,
-          isActive: index === nextTrackIndex
-        })));
-        setCurrentTime(0);
-      } else if (repeatMode === 1) {
-        // Repeat all - generate new shuffle queue
-        const newQueue = generateShuffleQueue();
-        const nextTrackIndex = newQueue[0];
-        
-        setShuffleQueue(newQueue);
-        setShuffleIndex(0);
-        setCurrentTrackIndex(nextTrackIndex);
-        setShuffleHistory([nextTrackIndex]);
-        setPlaylist(prev => prev.map((track, index) => ({
-          ...track,
-          isActive: index === nextTrackIndex
-        })));
-        setCurrentTime(0);
-      }
-    } else {
-      // Normal mode
-      if (currentTrackIndex < playlist.length - 1) {
-        const nextIndex = currentTrackIndex + 1;
-        setCurrentTrackIndex(nextIndex);
-        setPlaylist(prev => prev.map((track, index) => ({
-          ...track,
-          isActive: index === nextIndex
-        })));
-        setCurrentTime(0);
-      }
-    }
-  }, [currentTrackIndex, playlist.length, isShuffled, shuffleQueue, shuffleIndex, repeatMode, generateShuffleQueue]);
-
-  const handlePrevious = useCallback(() => {
-    if (isShuffled && shuffleHistory.length > 1) {
-      // Shuffle mode - go back in history
-      const newHistory = [...shuffleHistory];
-      newHistory.pop(); // Remove current track
-      const prevTrackIndex = newHistory[newHistory.length - 1];
-      
-      setShuffleHistory(newHistory);
-      setCurrentTrackIndex(prevTrackIndex);
-      
-      // Update shuffle index to match the history position
-      const shufflePos = shuffleQueue.findIndex(index => index === prevTrackIndex);
-      if (shufflePos !== -1) {
-        setShuffleIndex(shufflePos);
-      }
-      
+    if (currentTrackIndex < playlist.length - 1) {
+      // Move to next track
+      const nextIndex = currentTrackIndex + 1;
+      setCurrentTrackIndex(nextIndex);
       setPlaylist(prev => prev.map((track, index) => ({
         ...track,
-        isActive: index === prevTrackIndex
+        isActive: index === nextIndex
+      })));
+      setCurrentTime(0);
+    } else if (repeatMode === 1) {
+      // At end of playlist with repeat all - go to first track
+      setCurrentTrackIndex(0);
+      setPlaylist(prev => prev.map((track, index) => ({
+        ...track,
+        isActive: index === 0
       })));
       setCurrentTime(0);
     } else {
-      // Normal mode
-      if (currentTrackIndex > 0) {
-        const prevIndex = currentTrackIndex - 1;
-        setCurrentTrackIndex(prevIndex);
-        setPlaylist(prev => prev.map((track, index) => ({
-          ...track,
-          isActive: index === prevIndex
-        })));
-        setCurrentTime(0);
-      }
+      // End of playlist, no repeat - stop playback
+      setIsPlaying(false);
     }
-  }, [currentTrackIndex, isShuffled, shuffleHistory, shuffleQueue]);
+  }, [currentTrackIndex, playlist.length, repeatMode, setIsPlaying]);
+
+  const handlePrevious = useCallback(() => {
+    if (currentTrackIndex > 0) {
+      const prevIndex = currentTrackIndex - 1;
+      setCurrentTrackIndex(prevIndex);
+      setPlaylist(prev => prev.map((track, index) => ({
+        ...track,
+        isActive: index === prevIndex
+      })));
+      setCurrentTime(0);
+    }
+  }, [currentTrackIndex]);
 
   const selectTrack = useCallback((index: number) => {
     setCurrentTrackIndex(index);
@@ -220,65 +151,25 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
     })));
     setCurrentTime(0);
     setIsPlaying(true);
-    
-    // Update shuffle state if shuffle is enabled
-    if (isShuffled) {
-      setShuffleHistory([index]);
-      const shufflePos = shuffleQueue.findIndex(queueIndex => queueIndex === index);
-      if (shufflePos !== -1) {
-        setShuffleIndex(shufflePos);
-      } else {
-        // Track not in current shuffle queue, generate new one
-        const newQueue = generateShuffleQueue(index);
-        setShuffleQueue(newQueue);
-        setShuffleIndex(0);
-      }
-    }
-  }, [isShuffled, shuffleQueue, generateShuffleQueue]);
+  }, []);
 
   const removeTrack = useCallback((indexToRemove: number) => {
     setPlaylist(prev => {
       const updated = prev.filter((_, index) => index !== indexToRemove);
       
-      // Update shuffle queue and history
-      if (isShuffled) {
-        // Remove the track from shuffle queue and update indices
-        const newQueue = shuffleQueue
-          .filter(queueIndex => queueIndex !== indexToRemove)
-          .map(queueIndex => queueIndex > indexToRemove ? queueIndex - 1 : queueIndex);
-        
-        const newHistory = shuffleHistory
-          .filter(historyIndex => historyIndex !== indexToRemove)
-          .map(historyIndex => historyIndex > indexToRemove ? historyIndex - 1 : historyIndex);
-        
-        setShuffleQueue(newQueue);
-        setShuffleHistory(newHistory);
-        
-        // Update shuffle index
-        if (shuffleIndex > 0 && shuffleQueue[shuffleIndex] === indexToRemove) {
-          setShuffleIndex(Math.max(0, shuffleIndex - 1));
-        }
-      }
-      
+      // Adjust current track index
       if (indexToRemove < currentTrackIndex) {
         setCurrentTrackIndex(currentTrackIndex - 1);
       } else if (indexToRemove === currentTrackIndex) {
-        setCurrentTrackIndex(0);
+        const newIndex = Math.min(indexToRemove, updated.length - 1);
+        setCurrentTrackIndex(Math.max(0, newIndex));
         setIsPlaying(false);
         setCurrentTime(0);
-        
-        // Reset shuffle state if current track is removed
-        if (isShuffled && updated.length > 1) {
-          const newQueue = generateShuffleQueue(0);
-          setShuffleQueue(newQueue);
-          setShuffleHistory([0]);
-          setShuffleIndex(0);
-        }
       }
       
       return updated;
     });
-  }, [currentTrackIndex, isShuffled, shuffleQueue, shuffleHistory, shuffleIndex, generateShuffleQueue]);
+  }, [currentTrackIndex]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = Number(e.target.value);
@@ -456,8 +347,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                   />
 
                   <SecondaryControls
-                    isShuffled={isShuffled}
-                    onShuffleToggle={handleShuffleToggle}
+                    onShuffleClick={shufflePlaylist}
                     repeatMode={repeatMode}
                     onRepeatToggle={() => setRepeatMode((repeatMode + 1) % 3)}
                     onPlaylistToggle={() => setShowPlaylist(!showPlaylist)}
@@ -566,8 +456,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
                 >
                   <div className="space-y-3 sm:space-y-4">
                     <SecondaryControls
-                      isShuffled={isShuffled}
-                      onShuffleToggle={handleShuffleToggle}
+                      onShuffleClick={shufflePlaylist}
                       repeatMode={repeatMode}
                       onRepeatToggle={() => setRepeatMode((repeatMode + 1) % 3)}
                       onPlaylistToggle={() => setShowPlaylist(!showPlaylist)}
@@ -616,6 +505,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
         onSelectTrack={selectTrack}
         onRemoveTrack={removeTrack}
         isPlaying={isPlaying}
+        isShuffling={isShuffling}
       />
 
       <SleepTimerPopup

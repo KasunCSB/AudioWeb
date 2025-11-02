@@ -1,6 +1,5 @@
 interface SecondaryControlsProps {
-  isShuffled: boolean;
-  onShuffleToggle: () => void;
+  onShuffleClick: () => void;
   repeatMode: number;
   onRepeatToggle: () => void;
   onPlaylistToggle: () => void;
@@ -12,8 +11,7 @@ interface SecondaryControlsProps {
 }
 
 export const SecondaryControls: React.FC<SecondaryControlsProps> = ({
-  isShuffled,
-  onShuffleToggle,
+  onShuffleClick,
   repeatMode,
   onRepeatToggle,
   onPlaylistToggle,
@@ -27,12 +25,10 @@ export const SecondaryControls: React.FC<SecondaryControlsProps> = ({
     <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
       {/* Shuffle */}
       <button
-        onClick={onShuffleToggle}
-        className={`p-2 sm:p-2.5 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 mobile-no-select touch-target flex items-center justify-center ${
-          isShuffled ? 'bg-white/20 text-white' : 'bg-white/10 text-white/60'
-        }`}
+        onClick={onShuffleClick}
+        className="p-2 sm:p-2.5 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 mobile-no-select touch-target flex items-center justify-center bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
         style={{ backdropFilter: 'blur(8px)' }}
-        title="Shuffle"
+        title="Shuffle Playlist"
       >
         <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 17h4.5a3 3 0 003-3v-4a3 3 0 013-3H21m0 0l-3-3m3 3l-3 3M3 7h4.5a3 3 0 013 3v4a3 3 0 003 3H21m0 0l-3-3m3 3l-3 3" />
@@ -46,7 +42,7 @@ export const SecondaryControls: React.FC<SecondaryControlsProps> = ({
           repeatMode > 0 ? 'bg-white/20 text-white' : 'bg-white/10 text-white/60'
         }`}
         style={{ backdropFilter: 'blur(8px)' }}
-        title="Repeat"
+        title={repeatMode === 0 ? "Repeat: OFF" : repeatMode === 1 ? "Repeat: All" : "Repeat: One"}
       >
         <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 20 20">
           <path d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"/>

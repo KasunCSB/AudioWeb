@@ -11,6 +11,7 @@ interface PlaylistPopupProps {
   onSelectTrack: (index: number) => void;
   onRemoveTrack: (index: number) => void;
   isPlaying?: boolean;
+  isShuffling?: boolean;
 }
 
 export const PlaylistPopup: React.FC<PlaylistPopupProps> = ({
@@ -21,7 +22,8 @@ export const PlaylistPopup: React.FC<PlaylistPopupProps> = ({
   onMouseDown,
   onSelectTrack,
   onRemoveTrack,
-  isPlaying = false
+  isPlaying = false,
+  isShuffling = false
 }) => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -47,9 +49,9 @@ export const PlaylistPopup: React.FC<PlaylistPopupProps> = ({
         {playlist.map((track, index) => (
           <div
             key={track.id}
-            className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer hover:bg-white/10 group ${
+            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer group relative overflow-hidden ${
               track.isActive ? 'bg-white/15' : ''
-            }`}
+            } ${isShuffling ? 'shuffle-item' : 'transition-all duration-200 hover:bg-white/10'}`}
             onClick={() => onSelectTrack(index)}
           >
             <div className="text-sm text-white/60 w-6 flex-shrink-0">

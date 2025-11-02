@@ -155,20 +155,15 @@ export const useAudioManager = (
     const handleEnded = () => {
       logger.debug('Track ended');
       if (repeatMode === 2) {
-        // Repeat one
+        // Repeat one - replay current track
         audio.currentTime = 0;
         audio.play().catch((err) => {
           logger.error('Failed to play repeated track:', err);
         });
-      } else if (repeatMode === 1 && currentTrackIndex < playlist.length - 1) {
-        // Repeat all - go to next track
-        handleNext();
-      } else if (currentTrackIndex < playlist.length - 1) {
-        // Normal - go to next track
-        handleNext();
       } else {
-        setIsPlaying(false);
-        logger.info('Playlist ended');
+        // Normal or Repeat All mode - let handleNext decide what to do
+        // handleNext will handle both shuffle and normal modes, as well as repeat all
+        handleNext();
       }
     };
     

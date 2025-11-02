@@ -34,10 +34,8 @@ export const SecondaryControls: React.FC<SecondaryControlsProps> = ({
         style={{ backdropFilter: 'blur(8px)' }}
         title="Shuffle"
       >
-        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M4 20L16 8M4 4L16 16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
-          <path d="M14 6L18 2L22 6L18 10z"/>
-          <path d="M14 18L18 14L22 18L18 22z"/>
+        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 17h4.5a3 3 0 003-3v-4a3 3 0 013-3H21m0 0l-3-3m3 3l-3 3M3 7h4.5a3 3 0 013 3v4a3 3 0 003 3H21m0 0l-3-3m3 3l-3 3" />
         </svg>
       </button>
 
@@ -94,7 +92,7 @@ export const SecondaryControls: React.FC<SecondaryControlsProps> = ({
         title="Equalizer"
       >
         <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 4v7m0 0v9m0-9h12m-12 0V4m12 7v9m0-9V4m-6 0v16" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
         </svg>
       </button>
 
@@ -107,8 +105,8 @@ export const SecondaryControls: React.FC<SecondaryControlsProps> = ({
         style={{ backdropFilter: 'blur(8px)' }}
         title="Visualization"
       >
-        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v18m6-18v18M3 12h18" />
+        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M3 13h2v8H3v-8zm4-4h2v12H7V9zm4-6h2v18h-2V3zm4 8h2v10h-2V11zm4-2h2v12h-2V9z"/>
         </svg>
       </button>
     </div>

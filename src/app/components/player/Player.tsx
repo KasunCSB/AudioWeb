@@ -21,13 +21,14 @@ import { LottieAnimation } from './LottieAnimation';
 import { LyricsDisplay } from './LyricsDisplay';
 import { PlayerStyles } from './PlayerStyles';
 import { getFileInputAcceptAttribute } from '@/utils/audioUtils';
+import { UI_CONFIG } from '@/config/constants';
 
 const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = false }) => {
   // State management
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(75);
+  const [volume, setVolume] = useState<number>(UI_CONFIG.VOLUME.DEFAULT);
   const [isShuffled, setIsShuffled] = useState(false);
   const [repeatMode, setRepeatMode] = useState(0);
   const [playlist, setPlaylist] = useState<AudioTrack[]>([]);

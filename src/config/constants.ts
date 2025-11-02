@@ -285,7 +285,7 @@ export const UI_CONFIG = {
   
   // Volume control
   VOLUME: {
-    DEFAULT: 75,
+    DEFAULT: 66,
     MIN: 0,
     MAX: 100,
     STEP: 5,

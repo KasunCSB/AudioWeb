@@ -22,7 +22,7 @@ import { PlayerStyles } from './PlayerStyles';
 import { getFileInputAcceptAttribute } from '@/utils/audioUtils';
 import { UI_CONFIG } from '@/config/constants';
 
-const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = false, onPlayingChange, onTrackChange }) => {
+const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = false, onPlayingChange, onTrackChange, onSleepTimerChange }) => {
   // State management
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -67,6 +67,13 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
       onTrackChange(current, next);
     }
   }, [currentTrackIndex, playlist, repeatMode, onTrackChange]);
+
+  // Notify parent component when sleep timer changes
+  useEffect(() => {
+    if (onSleepTimerChange) {
+      onSleepTimerChange(sleepTimer);
+    }
+  }, [sleepTimer, onSleepTimerChange]);
 
   // Shuffle utility function - reorders the playlist
   const shufflePlaylist = useCallback(() => {
@@ -511,10 +518,11 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
       <SleepTimerPopup
         show={showSleepTimer}
         position={popupPositions.sleepTimer}
-        sleepTimer={sleepTimer}
+        sleepTimer={Math.floor(sleepTimer / 60)} // Display in minutes
+        isTimerActive={sleepTimer > 0} // Pass true if any timer is active
         onClose={() => setShowSleepTimer(false)}
         onMouseDown={(e) => handleMouseDown('sleepTimer', e)}
-        onSetTimer={setSleepTimer}
+        onSetTimer={(minutes) => setSleepTimer(minutes * 60)} // Convert minutes to seconds
         onCancelTimer={() => setSleepTimer(0)}
       />
 

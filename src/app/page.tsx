@@ -97,6 +97,7 @@ export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<AudioTrack | null>(null);
   const [nextTrack, setNextTrack] = useState<AudioTrack | null>(null);
+  const [sleepTimer, setSleepTimer] = useState(0);
 
   const handlePlayClick = () => {
     setIsPlayerVisible(true);
@@ -117,6 +118,10 @@ export default function Home() {
   const handleTrackChange = (current: AudioTrack | null, next: AudioTrack | null) => {
     setCurrentTrack(current);
     setNextTrack(next);
+  };
+
+  const handleSleepTimerChange = (timer: number) => {
+    setSleepTimer(timer);
   };
 
   const handlePlayPause = () => {
@@ -142,6 +147,7 @@ export default function Home() {
         currentTrack={currentTrack}
         nextTrack={nextTrack}
         isPlayerVisible={isPlayerVisible}
+        sleepTimer={sleepTimer}
         showNowPlaying={!isPlayerVisible && currentTrack !== null}
         onPlayPause={handlePlayPause}
         onNext={handleNext}
@@ -159,6 +165,7 @@ export default function Home() {
         onClose={handleClosePlayer}
         onPlayingChange={handlePlayingChange}
         onTrackChange={handleTrackChange}
+        onSleepTimerChange={handleSleepTimerChange}
       />
     </div>
   );

@@ -25,6 +25,7 @@ interface NavbarProps {
   currentTrack?: AudioTrack | null;
   nextTrack?: AudioTrack | null;
   isPlayerVisible?: boolean; // New prop to control navbar controls visibility
+  sleepTimer?: number;
   onPlayPause?: () => void;
   onNext?: () => void;
   onPrevious?: () => void;
@@ -37,6 +38,7 @@ const Navbar: React.FC<NavbarProps> = ({
   currentTrack = null,
   nextTrack = null,
   isPlayerVisible = false,
+  sleepTimer = 0,
   onPlayPause,
   onNext,
   onPrevious,
@@ -113,6 +115,7 @@ const Navbar: React.FC<NavbarProps> = ({
             nextTrack={nextTrack}
             isPlaying={isPlaying}
             isPlayerVisible={isPlayerVisible}
+            sleepTimer={sleepTimer}
             onPlayPause={onPlayPause!}
             onNext={onNext!}
             onPrevious={onPrevious!}

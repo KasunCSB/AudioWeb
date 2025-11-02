@@ -375,7 +375,7 @@ export const LOG_LEVELS = {
 export const IS_DEV = process.env.NODE_ENV === 'development';
 
 /**
- * Enable debug logging
+ * Enable debug logging (only in development)
  */
-export const DEBUG_LOGGING = IS_DEV;
-//export const DEBUG_LOGGING = false;
+//export const DEBUG_LOGGING = IS_DEV;
+export const DEBUG_LOGGING = false;

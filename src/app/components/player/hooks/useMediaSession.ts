@@ -1,5 +1,8 @@
 import { useEffect, useCallback } from 'react';
 import { AudioTrack } from '../types';
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('MediaSession');
 
 interface MediaSessionHookProps {
   currentTrack: AudioTrack | null;
@@ -58,7 +61,7 @@ export const useMediaSession = ({
         artwork: artwork
       });
     } catch (error) {
-      console.warn('Failed to update media metadata:', error);
+      logger.warn('Failed to update media metadata:', error);
     }
   }, [currentTrack]);
 
@@ -70,7 +73,7 @@ export const useMediaSession = ({
       const state = isPlaying ? 'playing' : 'paused';
       navigator.mediaSession.playbackState = state;
     } catch (error) {
-      console.warn('Failed to update playback state:', error);
+      logger.warn('Failed to update playback state:', error);
     }
   }, [isPlaying]);
 
@@ -85,14 +88,14 @@ export const useMediaSession = ({
         position: currentTime
       });
     } catch (error) {
-      console.warn('Failed to update position state:', error);
+      logger.warn('Failed to update position state:', error);
     }
   }, [duration, currentTime]);
 
   // Set up action handlers
   useEffect(() => {
     if (!('mediaSession' in navigator)) {
-      console.warn('Media Session API not supported in this browser');
+      logger.info('Media Session API not supported in this browser');
       return;
     }
 
@@ -132,7 +135,7 @@ export const useMediaSession = ({
       try {
         navigator.mediaSession.setActionHandler(action, handler);
       } catch (error) {
-        console.warn(`Failed to set ${action} action handler:`, error);
+        logger.warn(`Failed to set ${action} action handler:`, error);
       }
     });
 
@@ -142,7 +145,7 @@ export const useMediaSession = ({
         try {
           navigator.mediaSession.setActionHandler(action, null);
         } catch (error) {
-          console.warn(`Failed to remove ${action} action handler:`, error);
+          logger.warn(`Failed to remove ${action} action handler:`, error);
         }
       });
     };

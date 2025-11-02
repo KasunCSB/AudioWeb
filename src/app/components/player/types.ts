@@ -126,6 +126,7 @@ export interface PlayerProps {
   asPage?: boolean;
   onPlayingChange?: (isPlaying: boolean) => void;
   onTrackChange?: (currentTrack: AudioTrack | null, nextTrack: AudioTrack | null) => void;
+  onSleepTimerChange?: (sleepTimer: number) => void;
 }
 
 export interface PopupPositions {

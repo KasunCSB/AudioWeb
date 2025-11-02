@@ -174,9 +174,6 @@ export const useAudioManager = (
       
       logger.error('Audio playback error:', errorMessage);
       
-      // Display error to user (you can enhance this with a toast notification)
-      console.error('Playback error:', errorMessage);
-      
       // Try to recover by pausing
       setIsPlaying(false);
     };
@@ -255,8 +252,7 @@ export const useAudioManager = (
           
           // Handle autoplay policies
           if (error.name === 'NotAllowedError') {
-            logger.warn('Autoplay was prevented by browser policy');
-            console.warn('User interaction required to start playback');
+            logger.info('Autoplay was prevented. User interaction required to start playback.');
           }
         });
     }

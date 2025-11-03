@@ -12,49 +12,18 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   onSeek
 }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [dragTime, setDragTime] = useState(0);
-  const [smoothTime, setSmoothTime] = useState(0);
+  const [localTime, setLocalTime] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const lastTimeRef = useRef(0);
+  const isSeekingRef = useRef(false);
 
-  // Use dragging time if dragging, otherwise use smooth interpolated time
-  const displayTime = isDragging ? dragTime : smoothTime;
+  // Use local time when dragging, otherwise use prop time
+  const displayTime = isDragging ? localTime : currentTime;
 
-  // Smooth time interpolation using requestAnimationFrame
+  // Update local time when not interacting
   useEffect(() => {
-    if (isDragging) {
-      // Don't interpolate while dragging
-      return;
+    if (!isDragging && !isSeekingRef.current) {
+      setLocalTime(currentTime);
     }
-
-    const interpolateTime = () => {
-      setSmoothTime(prev => {
-        const diff = currentTime - prev;
-        
-        // If the difference is large (seeking occurred), jump immediately
-        if (Math.abs(diff) > 1) {
-          lastTimeRef.current = currentTime;
-          return currentTime;
-        }
-        
-        // Smooth interpolation for small changes
-        const smoothFactor = 0.15;
-        const newTime = prev + diff * smoothFactor;
-        lastTimeRef.current = newTime;
-        return newTime;
-      });
-      
-      animationFrameRef.current = requestAnimationFrame(interpolateTime);
-    };
-
-    animationFrameRef.current = requestAnimationFrame(interpolateTime);
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
   }, [currentTime, isDragging]);
 
   const formatTime = (seconds: number) => {
@@ -66,37 +35,54 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
 
   const handleMouseDown = () => {
     setIsDragging(true);
-    setDragTime(currentTime);
+    setLocalTime(currentTime);
   };
 
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
-      onSeek(dragTime);
+      isSeekingRef.current = true;
+      onSeek(localTime);
+      
+      // Allow updates to resume after seek completes
+      setTimeout(() => {
+        isSeekingRef.current = false;
+      }, 200);
     }
   };
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = Number(e.target.value);
-    if (isDragging) {
-      setDragTime(newTime);
-    } else {
-      // If not dragging but change happens (e.g., click), seek immediately
-      setSmoothTime(newTime);
+    setLocalTime(newTime);
+    
+    if (!isDragging) {
+      // Direct click on seekbar
+      isSeekingRef.current = true;
       onSeek(newTime);
+      
+      // Allow updates to resume after seek completes
+      setTimeout(() => {
+        isSeekingRef.current = false;
+      }, 200);
     }
   }, [isDragging, onSeek]);
 
   // Handle touch events
   const handleTouchStart = () => {
     setIsDragging(true);
-    setDragTime(currentTime);
+    setLocalTime(currentTime);
   };
 
   const handleTouchEnd = () => {
     if (isDragging) {
       setIsDragging(false);
-      onSeek(dragTime);
+      isSeekingRef.current = true;
+      onSeek(localTime);
+      
+      // Allow updates to resume after seek completes
+      setTimeout(() => {
+        isSeekingRef.current = false;
+      }, 200);
     }
   };
 
@@ -105,14 +91,24 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
     const handleGlobalMouseUp = () => {
       if (isDragging) {
         setIsDragging(false);
-        onSeek(dragTime);
+        isSeekingRef.current = true;
+        onSeek(localTime);
+        
+        setTimeout(() => {
+          isSeekingRef.current = false;
+        }, 200);
       }
     };
 
     const handleGlobalTouchEnd = () => {
       if (isDragging) {
         setIsDragging(false);
-        onSeek(dragTime);
+        isSeekingRef.current = true;
+        onSeek(localTime);
+        
+        setTimeout(() => {
+          isSeekingRef.current = false;
+        }, 200);
       }
     };
 
@@ -123,7 +119,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
       document.removeEventListener('mouseup', handleGlobalMouseUp);
       document.removeEventListener('touchend', handleGlobalTouchEnd);
     };
-  }, [isDragging, dragTime, onSeek]);
+  }, [isDragging, localTime, onSeek]);
 
   return (
     <div className="space-y-2 sm:space-y-3">

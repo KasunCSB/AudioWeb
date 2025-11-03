@@ -403,8 +403,8 @@ export const LyricsDisplay: React.FC<LyricsDisplayProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         </div>
-        <h3 className="text-xl font-semibold text-white/60 mb-2">No Lyrics Available</h3>
-        <p className="text-white/40">This track doesn&apos;t have a LRC file</p>
+        <h3 className="text-xl font-semibold text-white/60 mb-2">No Lyrics Found</h3>
+        <p className="text-white/40">This track doesn&apos;t have embedded lyrics or an associated LRC file</p>
       </div>
     </div>
   );

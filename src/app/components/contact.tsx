@@ -129,7 +129,7 @@ export const SupportPopup: React.FC<SupportPopupProps> = ({ show, onClose }) => 
               <div className="space-y-2 text-xs text-white/60">
                 <p>• Try refreshing the page if audio playback stops working</p>
                 <p>• Make sure your browser allows audio autoplay</p>
-                <p>• For lyrics, upload .lrc files with the same name as your audio</p>
+                <p>• Lyrics are automatically detected from embedded tags or .lrc files</p>
               </div>
             </div>
           </div>

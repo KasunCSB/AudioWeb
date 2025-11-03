@@ -42,7 +42,7 @@ export const AlbumArt: React.FC<AlbumArtProps> = ({
               </svg>
             </div>
             <div>
-              <h3 className="text-xl sm:text-2xl font-semibold text-white mb-3">Upload Your Music</h3>
+              <h3 className="text-xl sm:text-2xl font-semibold text-white mb-3">Upload your music</h3>
               <p className="text-white/70 text-base sm:text-lg mb-4">Drag & drop audio files here</p>
               <p className="text-white/50 text-sm">or click to browse your files</p>
             </div>
@@ -76,9 +76,8 @@ export const AlbumArt: React.FC<AlbumArtProps> = ({
           ) : (
             <div className="text-center">
               <div className="w-16 h-16 mx-auto rounded-full bg-white/10 flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.814L4.5 13.93A1 1 0 014 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2a1 1 0 01.5-.069l3.883-2.884a1 1 0 011 0z"/>
-                  <path d="M11 8a1 1 0 011-1h5a1 1 0 011 1v8a1 1 0 01-1 1h-5a1 1 0 01-1-1V8z"/>
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                 </svg>
               </div>
               <p className="text-white/70">No Album Art</p>

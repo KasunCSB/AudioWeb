@@ -137,7 +137,7 @@ export const EqualizerPopup: React.FC<EqualizerPopupProps> = ({
       position={position}
       onClose={onClose}
       onMouseDown={onMouseDown}
-      title="Professional Audio Equalizer"
+      title="Equalizer"
       minWidth={isMobileDevice ? 320 : 900}
       minHeight={isMobileDevice ? 600 : 500}
       maxWidth={isMobileDevice ? 600 : 1400}
@@ -354,13 +354,13 @@ export const EqualizerPopup: React.FC<EqualizerPopupProps> = ({
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
                     </svg>
-                    Advanced Tone Controls
+                    Tone Control
                   </h3>
                   
                   {/* Bass Tone */}
                   <div className="space-y-2">
                     <label className="text-white/80 text-xs font-medium flex justify-between items-center">
-                      <span className="font-semibold">🎵 Bass Tone</span>
+                      <span className="font-semibold">🎵 Bass</span>
                       <span className={`font-mono text-sm ${
                         settings.bassTone > 0 ? 'text-green-400' : settings.bassTone < 0 ? 'text-red-400' : 'text-white/50'
                       }`}>
@@ -478,7 +478,7 @@ export const EqualizerPopup: React.FC<EqualizerPopupProps> = ({
                   {/* Treble Tone */}
                   <div className="space-y-2">
                     <label className="text-white/80 text-xs font-medium flex justify-between items-center">
-                      <span className="font-semibold">🎶 Treble Tone</span>
+                      <span className="font-semibold">🎶 Treble</span>
                       <span className={`font-mono text-sm ${
                         settings.trebleTone > 0 ? 'text-green-400' : settings.trebleTone < 0 ? 'text-red-400' : 'text-white/50'
                       }`}>
@@ -723,13 +723,13 @@ export const EqualizerPopup: React.FC<EqualizerPopupProps> = ({
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
                 </svg>
-                Advanced Tone Controls
+                Tone Control
               </h3>
               
               {/* Bass Tone */}
               <div className="space-y-2">
                 <label className="text-white/80 text-xs font-medium flex justify-between items-center">
-                  <span className="font-semibold">🎵 Bass Tone</span>
+                  <span className="font-semibold">🎵 Bass</span>
                   <span className={`font-mono text-sm ${
                     settings.bassTone > 0 ? 'text-green-400' : settings.bassTone < 0 ? 'text-red-400' : 'text-white/50'
                   }`}>
@@ -759,7 +759,7 @@ export const EqualizerPopup: React.FC<EqualizerPopupProps> = ({
               {/* Treble Tone */}
               <div className="space-y-2">
                 <label className="text-white/80 text-xs font-medium flex justify-between items-center">
-                  <span className="font-semibold">🎶 Treble Tone</span>
+                  <span className="font-semibold">🎶 Treble</span>
                   <span className={`font-mono text-sm ${
                     settings.trebleTone > 0 ? 'text-green-400' : settings.trebleTone < 0 ? 'text-red-400' : 'text-white/50'
                   }`}>

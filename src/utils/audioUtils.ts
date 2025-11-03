@@ -321,19 +321,31 @@ export function deepClone<T>(obj: T): T {
 /**
  * Generate the accept attribute value for file input
  * Returns a comma-separated list of all supported audio formats and lyrics files
- * Prioritizes extensions for better OS file picker display
+ * Includes both MIME types and extensions for maximum compatibility across devices
+ * Mobile devices (iOS/Android) require MIME types for proper file picker functionality
  */
 export function getFileInputAcceptAttribute(): string {
   // Get all unique extensions (these show up nicely in OS file pickers)
   const extensions = [...new Set(SUPPORTED_EXTENSIONS)];
   
-  // Add lyrics file extensions
-  const lyricsExtensions = ['.lrc', '.txt'];
+  // Get all unique MIME types (required for mobile device compatibility)
+  const mimeTypes = [...new Set(SUPPORTED_MIME_TYPES)];
   
-  // Combine extensions only (MIME types often don't display well in file pickers)
+  // Add lyrics file extensions and MIME types
+  const lyricsExtensions = ['.lrc', '.txt'];
+  const lyricsMimeTypes = ['text/plain'];
+  
+  // Add generic audio/* MIME type for broader mobile support
+  const genericMimeTypes = ['audio/*'];
+  
+  // Combine all formats: MIME types first (for mobile), then extensions (for desktop)
+  // This ensures maximum compatibility across all devices and browsers
   const allFormats = [
-    ...extensions,
-    ...lyricsExtensions,
+    ...genericMimeTypes,      // Generic audio MIME for mobile fallback
+    ...mimeTypes,             // Specific MIME types for all audio formats
+    ...lyricsMimeTypes,       // Lyrics MIME types
+    ...extensions,            // File extensions for desktop
+    ...lyricsExtensions,      // Lyrics extensions
   ];
   
   return allFormats.join(',');

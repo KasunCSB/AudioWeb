@@ -5,6 +5,16 @@ import { getAudioErrorMessage } from '@/utils/audioUtils';
 
 const logger = createLogger('AudioManager');
 
+// Global storage to persist audio context and nodes across component remounts
+interface AudioContextData {
+  context: AudioContext;
+  source: MediaElementAudioSourceNode;
+  gainNode: GainNode;
+  filters: BiquadFilterNode[];
+}
+
+const audioContextStorage = new WeakMap<HTMLAudioElement, AudioContextData>();
+
 export const useAudioManager = (
   playlist: AudioTrack[],
   currentTrackIndex: number,
@@ -19,6 +29,7 @@ export const useAudioManager = (
 ) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const filtersRef = useRef<BiquadFilterNode[]>([]);
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -97,52 +108,95 @@ export const useAudioManager = (
     const audio = audioRef.current;
     if (!audio) return;
 
+    // Check if this audio element has already been initialized globally
+    const existingData = audioContextStorage.get(audio);
+    if (existingData) {
+      logger.debug('Audio element already initialized, reusing existing context');
+      // Restore refs from global storage
+      audioContextRef.current = existingData.context;
+      sourceNodeRef.current = existingData.source;
+      gainNodeRef.current = existingData.gainNode;
+      filtersRef.current = existingData.filters;
+      return;
+    }
+
+    // Skip if already initialized for this specific audio element
+    if (audioContextRef.current && sourceNodeRef.current) {
+      logger.debug('Web Audio API already initialized, skipping');
+      return;
+    }
+
+    // Check if this audio element has already been connected to a source node
+    // This can happen when navigating between pages
     try {
-      logger.start('Initializing Web Audio API');
-      
+      // Try to create the context first
       const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const source = audioContext.createMediaElementSource(audio);
-      const gainNode = audioContext.createGain();
-
-      // Create filter nodes for each frequency band
-      const frequencies = [60, 170, 350, 1000, 3500, 10000, 14000]; // Hz
-      const filters = frequencies.map((freq, index) => {
-        const filter = audioContext.createBiquadFilter();
-        filter.type = index === 0 ? 'lowshelf' : index === frequencies.length - 1 ? 'highshelf' : 'peaking';
-        filter.frequency.value = freq;
-        filter.Q.value = 1;
-        filter.gain.value = 0;
-        return filter;
-      });
-
-      // Connect audio graph
-      source.connect(filters[0]);
-      for (let i = 0; i < filters.length - 1; i++) {
-        filters[i].connect(filters[i + 1]);
-      }
-      filters[filters.length - 1].connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      audioContextRef.current = audioContext;
-      gainNodeRef.current = gainNode;
-      filtersRef.current = filters;
       
-      logger.info('Web Audio API initialized successfully');
+      try {
+        logger.start('Initializing Web Audio API');
+        const source = audioContext.createMediaElementSource(audio);
+        const gainNode = audioContext.createGain();
 
-      return () => {
-        if (fadeTimeoutRef.current) {
-          clearTimeout(fadeTimeoutRef.current);
+        // Create filter nodes for each frequency band
+        const frequencies = [60, 170, 350, 1000, 3500, 10000, 14000]; // Hz
+        const filters = frequencies.map((freq, index) => {
+          const filter = audioContext.createBiquadFilter();
+          filter.type = index === 0 ? 'lowshelf' : index === frequencies.length - 1 ? 'highshelf' : 'peaking';
+          filter.frequency.value = freq;
+          filter.Q.value = 1;
+          filter.gain.value = 0;
+          return filter;
+        });
+
+        // Connect audio graph
+        source.connect(filters[0]);
+        for (let i = 0; i < filters.length - 1; i++) {
+          filters[i].connect(filters[i + 1]);
         }
+        filters[filters.length - 1].connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        audioContextRef.current = audioContext;
+        sourceNodeRef.current = source;
+        gainNodeRef.current = gainNode;
+        filtersRef.current = filters;
+        
+        // Store in global WeakMap for persistence across remounts
+        audioContextStorage.set(audio, {
+          context: audioContext,
+          source,
+          gainNode,
+          filters
+        });
+        
+        logger.info('Web Audio API initialized successfully');
+
+        return () => {
+          if (fadeTimeoutRef.current) {
+            clearTimeout(fadeTimeoutRef.current);
+          }
+          // Keep the audio context and nodes in global storage
+          // They will be reused when component remounts
+          // Only cleanup: local timeout
+        };
+      } catch {
+        // This specific audio element is already connected to another source
+        // This shouldn't happen with our WeakMap check, but handle it gracefully
+        logger.debug('Audio element already connected, closing new context');
         if (audioContext.state !== 'closed') {
           audioContext.close().catch((err) => {
-            logger.error('Error closing audio context:', err);
+            logger.error('Error closing unused audio context:', err);
           });
         }
-      };
+        // Fall through to use basic HTML5 audio
+      }
     } catch (error) {
       logger.error('Web Audio API not supported:', error);
-      // Fallback to basic HTML5 audio without equalizer
-      logger.warn('Equalizer features will be disabled');
+    }
+    
+    // Fallback: if Web Audio API setup failed, equalizer will be disabled
+    if (!audioContextRef.current && !audioContextStorage.has(audio)) {
+      logger.warn('Using basic HTML5 audio without equalizer');
     }
   }, []);
 

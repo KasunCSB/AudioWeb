@@ -17,7 +17,7 @@ export default function NotFound() {
     >
       <div className="flex flex-col items-center justify-center gap-8 max-w-2xl">
         {/* SVG Illustration */}
-        <div className="relative select-none pointer-events-none">
+        <div className="relative select-none cursor-pointer transition-transform duration-300 hover:scale-105">
           <Image
             className="w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] md:w-[320px] md:h-[320px]"
             width={320}
@@ -46,7 +46,7 @@ export default function NotFound() {
             The page you&apos;re looking for doesn&apos;t exist.
           </p>
 
-          {/* Action Buttons */}
+          {/* Action Button */}
           <div className="flex flex-row items-center gap-3 mt-2">
             <Link
               href="/"
@@ -55,14 +55,6 @@ export default function NotFound() {
             >
               <span>Back to Home</span>
             </Link>
-            
-            <button
-              onClick={() => window.history.back()}
-              className="flex flex-row items-center gap-2 px-4 md:px-6 py-2.5 md:py-3 rounded-xl border border-white/30 bg-white/10 text-white shadow transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/30 text-sm md:text-base font-medium"
-              style={{ backdropFilter: 'blur(4px)' }}
-            >
-              <span>Go Back</span>
-            </button>
           </div>
         </div>
       </div>

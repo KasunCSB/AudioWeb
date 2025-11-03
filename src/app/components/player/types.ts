@@ -137,12 +137,22 @@ export interface PopupPositions {
 }
 
 export interface EqualizerSettings {
-  bass: number;
-  mid: number;
-  treble: number;
-  lowerMid: number;
-  upperMid: number;
-  presence: number;
-  brilliance: number;
+  // 10-band professional EQ (ISO standard frequencies)
+  band32: number;    // 32 Hz - Sub Bass
+  band64: number;    // 64 Hz - Bass
+  band125: number;   // 125 Hz - Bass/Low Mid
+  band250: number;   // 250 Hz - Low Mid
+  band500: number;   // 500 Hz - Mid
+  band1k: number;    // 1 kHz - Mid
+  band2k: number;    // 2 kHz - Upper Mid
+  band4k: number;    // 4 kHz - Presence
+  band8k: number;    // 8 kHz - Brilliance
+  band16k: number;   // 16 kHz - Air
+  
+  // Advanced tone controls for enhanced bass/treble
+  bassTone: number;    // -12 to +12 dB - Deep bass enhancement
+  trebleTone: number;  // -12 to +12 dB - Crisp treble enhancement
+  
   preset: string;
+  enabled: boolean;  // Master EQ on/off toggle
 }

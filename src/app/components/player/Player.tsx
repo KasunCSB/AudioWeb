@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { AudioTrack, PlayerProps, EqualizerSettings } from './types';
+import { AudioTrack, PlayerProps } from './types';
 import { useAudioManager } from './hooks/useAudioManager';
 import { useDragHandler } from './hooks/useDragHandler';
 import { useFileHandler } from './hooks/useFileHandler';
 import { useSleepTimer } from './hooks/useSleepTimer';
 import { useMediaSession } from './hooks/useMediaSession';
+import { useEqualizerPersistence } from './hooks/useEqualizerPersistence';
 import { AlbumArt } from './AlbumArt';
 import { ProgressBar } from './ProgressBar';
 import { MainControls } from './MainControls';
@@ -37,16 +38,12 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
   const [showSleepTimer, setShowSleepTimer] = useState(false);
   const [showVisualization, setShowVisualization] = useState(false);
   const [isShuffling, setIsShuffling] = useState(false);
-  const [equalizerSettings, setEqualizerSettings] = useState<EqualizerSettings>({
-    bass: 0,
-    mid: 0,
-    treble: 0,
-    lowerMid: 0,
-    upperMid: 0,
-    presence: 0,
-    brilliance: 0,
-    preset: 'flat'
-  });
+  
+  // Use equalizer persistence hook
+  const { 
+    settings: equalizerSettings, 
+    updateSettings: setEqualizerSettings,
+  } = useEqualizerPersistence();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentTrack = playlist[currentTrackIndex];

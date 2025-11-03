@@ -2,18 +2,24 @@ import { useCallback, useEffect, useRef } from 'react';
 import { AudioTrack, EqualizerSettings } from '../types';
 import { createLogger } from '@/utils/logger';
 import { getAudioErrorMessage } from '@/utils/audioUtils';
+import { EQUALIZER_BANDS } from '@/config/constants';
 
 const logger = createLogger('AudioManager');
 
-// Global storage to persist audio context and nodes across component remounts
-interface AudioContextData {
+// Simple Web Audio API chain storage
+interface AudioChain {
   context: AudioContext;
   source: MediaElementAudioSourceNode;
-  gainNode: GainNode;
+  preGain: GainNode;                   // Input level control
   filters: BiquadFilterNode[];
+  bassToneFilter: BiquadFilterNode;    // Advanced bass enhancement
+  trebleToneFilter: BiquadFilterNode;  // Advanced treble enhancement
+  compressor: DynamicsCompressorNode;  // Prevents distortion
+  gainNode: GainNode;
+  connected: boolean;
 }
 
-const audioContextStorage = new WeakMap<HTMLAudioElement, AudioContextData>();
+const audioChainStorage = new WeakMap<HTMLAudioElement, AudioChain>();
 
 export const useAudioManager = (
   playlist: AudioTrack[],
@@ -28,211 +34,246 @@ export const useAudioManager = (
   equalizerSettings: EqualizerSettings
 ) => {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
-  const filtersRef = useRef<BiquadFilterNode[]>([]);
+  const audioChainRef = useRef<AudioChain | null>(null);
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFadingRef = useRef<boolean>(false);
 
-  // Fade in audio over specified duration
+  // Fade in audio
   const fadeIn = useCallback((duration: number = 800) => {
     const audio = audioRef.current;
-    const gainNode = gainNodeRef.current;
-    const audioContext = audioContextRef.current;
+    const chain = audioChainRef.current;
     
-    if (!audio || !gainNode || !audioContext) {
-      // Fallback if Web Audio API not available
-      if (audio) {
-        audio.volume = volume / 100;
-      }
-      return;
-    }
+    if (!audio) return;
 
-    isFadingRef.current = true;
-    const currentTime = audioContext.currentTime;
     const targetVolume = volume / 100;
-    
-    // Start from 0 and fade to target volume
-    gainNode.gain.cancelScheduledValues(currentTime);
-    gainNode.gain.setValueAtTime(0, currentTime);
-    gainNode.gain.linearRampToValueAtTime(targetVolume, currentTime + duration / 1000);
-    
-    // Clear fading flag after fade completes
-    if (fadeTimeoutRef.current) {
-      clearTimeout(fadeTimeoutRef.current);
+
+    if (chain?.gainNode && chain.connected) {
+      try {
+        isFadingRef.current = true;
+        const now = chain.context.currentTime;
+        chain.gainNode.gain.cancelScheduledValues(now);
+        chain.gainNode.gain.setValueAtTime(0, now);
+        chain.gainNode.gain.linearRampToValueAtTime(targetVolume, now + duration / 1000);
+        
+        if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
+        fadeTimeoutRef.current = setTimeout(() => {
+          isFadingRef.current = false;
+        }, duration);
+        return;
+      } catch (error) {
+        logger.error('Fade in failed:', error);
+      }
     }
-    fadeTimeoutRef.current = setTimeout(() => {
-      isFadingRef.current = false;
-    }, duration);
+    
+    audio.volume = targetVolume;
   }, [volume]);
 
-  // Fade out audio over specified duration
+  // Fade out audio
   const fadeOut = useCallback((duration: number = 800): Promise<void> => {
     return new Promise((resolve) => {
       const audio = audioRef.current;
-      const gainNode = gainNodeRef.current;
-      const audioContext = audioContextRef.current;
+      const chain = audioChainRef.current;
       
-      if (!audio || !gainNode || !audioContext) {
-        // Fallback if Web Audio API not available
-        if (audio) {
-          audio.volume = 0;
-        }
+      if (!audio) {
         resolve();
         return;
       }
 
-      isFadingRef.current = true;
-      const currentTime = audioContext.currentTime;
-      const currentVolume = gainNode.gain.value;
-      
-      // Fade from current volume to 0
-      gainNode.gain.cancelScheduledValues(currentTime);
-      gainNode.gain.setValueAtTime(currentVolume, currentTime);
-      gainNode.gain.linearRampToValueAtTime(0, currentTime + duration / 1000);
-      
-      // Wait for fade to complete
-      if (fadeTimeoutRef.current) {
-        clearTimeout(fadeTimeoutRef.current);
+      if (chain?.gainNode && chain.connected) {
+        try {
+          isFadingRef.current = true;
+          const now = chain.context.currentTime;
+          const currentVolume = chain.gainNode.gain.value;
+          chain.gainNode.gain.cancelScheduledValues(now);
+          chain.gainNode.gain.setValueAtTime(currentVolume, now);
+          chain.gainNode.gain.linearRampToValueAtTime(0, now + duration / 1000);
+          
+          if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
+          fadeTimeoutRef.current = setTimeout(() => {
+            isFadingRef.current = false;
+            resolve();
+          }, duration);
+          return;
+        } catch (error) {
+          logger.error('Fade out failed:', error);
+        }
       }
-      fadeTimeoutRef.current = setTimeout(() => {
-        isFadingRef.current = false;
-        resolve();
-      }, duration);
+      
+      audio.volume = 0;
+      resolve();
     });
   }, []);
 
-  // Initialize audio context and equalizer
+  // Initialize Web Audio API chain once
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // Check if this audio element has already been initialized globally
-    const existingData = audioContextStorage.get(audio);
-    if (existingData) {
-      logger.debug('Audio element already initialized, reusing existing context');
-      // Restore refs from global storage
-      audioContextRef.current = existingData.context;
-      sourceNodeRef.current = existingData.source;
-      gainNodeRef.current = existingData.gainNode;
-      filtersRef.current = existingData.filters;
+    // Check if already initialized
+    const existingChain = audioChainStorage.get(audio);
+    if (existingChain && existingChain.connected) {
+      logger.debug('Audio chain already initialized');
+      audioChainRef.current = existingChain;
       return;
     }
 
-    // Skip if already initialized for this specific audio element
-    if (audioContextRef.current && sourceNodeRef.current) {
-      logger.debug('Web Audio API already initialized, skipping');
-      return;
-    }
-
-    // Check if this audio element has already been connected to a source node
-    // This can happen when navigating between pages
-    try {
-      // Try to create the context first
-      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      
+    // Initialize on first user interaction
+    const initAudioChain = () => {
       try {
-        logger.start('Initializing Web Audio API');
-        const source = audioContext.createMediaElementSource(audio);
-        const gainNode = audioContext.createGain();
+        logger.start('Initializing professional Web Audio API chain');
 
-        // Create filter nodes for each frequency band
-        const frequencies = [60, 170, 350, 1000, 3500, 10000, 14000]; // Hz
-        const filters = frequencies.map((freq, index) => {
+        // Create AudioContext
+        const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        
+        // Create MediaElementSource (can only be done once per element)
+        const source = audioContext.createMediaElementSource(audio);
+        
+        // Pre-gain to prevent overload (reduces input by 20% to give headroom for EQ boosts)
+        const preGain = audioContext.createGain();
+        preGain.gain.value = 0.8; // Reduce input to prevent distortion from heavy EQ
+        
+        // Create 10-band EQ with BiquadFilters (musical Q values for smooth sound)
+        const filters: BiquadFilterNode[] = [];
+        EQUALIZER_BANDS.forEach((band, index) => {
           const filter = audioContext.createBiquadFilter();
-          filter.type = index === 0 ? 'lowshelf' : index === frequencies.length - 1 ? 'highshelf' : 'peaking';
-          filter.frequency.value = freq;
-          filter.Q.value = 1;
+          filter.type = index === 0 ? 'lowshelf' : index === EQUALIZER_BANDS.length - 1 ? 'highshelf' : 'peaking';
+          filter.frequency.value = band.frequency;
+          // Musical Q values: lower = smoother, less resonance/noise
+          filter.Q.value = index === 0 || index === EQUALIZER_BANDS.length - 1 ? 0.7 : 1.0;
           filter.gain.value = 0;
-          return filter;
+          filters.push(filter);
         });
 
-        // Connect audio graph
-        source.connect(filters[0]);
-        for (let i = 0; i < filters.length - 1; i++) {
-          filters[i].connect(filters[i + 1]);
-        }
-        filters[filters.length - 1].connect(gainNode);
+        // Advanced Bass Tone control (low shelf at 100Hz, wide Q for smooth boost)
+        const bassToneFilter = audioContext.createBiquadFilter();
+        bassToneFilter.type = 'lowshelf';
+        bassToneFilter.frequency.value = 100; // Lower than 32Hz band for deep enhancement
+        bassToneFilter.Q.value = 0.5; // Smooth, wide curve
+        bassToneFilter.gain.value = 0;
+
+        // Advanced Treble Tone control (high shelf at 8kHz, wide Q for air)
+        const trebleToneFilter = audioContext.createBiquadFilter();
+        trebleToneFilter.type = 'highshelf';
+        trebleToneFilter.frequency.value = 8000; // Covers brilliance and air
+        trebleToneFilter.Q.value = 0.5; // Smooth, wide curve
+        trebleToneFilter.gain.value = 0;
+
+        // Optimized Limiter - prevents distortion without pumping
+        // Sweet spot between gentle and protective
+        const compressor = audioContext.createDynamicsCompressor();
+        compressor.threshold.value = -10;  // Catch peaks early
+        compressor.knee.value = 20;        // Smooth but effective
+        compressor.ratio.value = 6;        // Strong enough to prevent clipping (was 3, too weak)
+        compressor.attack.value = 0.005;   // Fast enough to catch peaks (5ms)
+        compressor.release.value = 0.1;    // Quick recovery (100ms)
+
+        // Create gain node for volume
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = volume / 100;
+
+        // Connect professional audio chain: source → pre-gain → tone controls → EQ → compressor → gain → destination
+        source.connect(preGain);
+        preGain.connect(bassToneFilter);
+        bassToneFilter.connect(trebleToneFilter);
+        
+        let currentNode: AudioNode = trebleToneFilter;
+        filters.forEach(filter => {
+          currentNode.connect(filter);
+          currentNode = filter;
+        });
+        
+        currentNode.connect(compressor);
+        compressor.connect(gainNode);
         gainNode.connect(audioContext.destination);
 
-        audioContextRef.current = audioContext;
-        sourceNodeRef.current = source;
-        gainNodeRef.current = gainNode;
-        filtersRef.current = filters;
-        
-        // Store in global WeakMap for persistence across remounts
-        audioContextStorage.set(audio, {
+        // Store chain
+        const chain: AudioChain = {
           context: audioContext,
           source,
+          preGain,
+          filters,
+          bassToneFilter,
+          trebleToneFilter,
+          compressor,
           gainNode,
-          filters
-        });
-        
-        logger.info('Web Audio API initialized successfully');
-
-        return () => {
-          if (fadeTimeoutRef.current) {
-            clearTimeout(fadeTimeoutRef.current);
-          }
-          // Keep the audio context and nodes in global storage
-          // They will be reused when component remounts
-          // Only cleanup: local timeout
+          connected: true,
         };
-      } catch {
-        // This specific audio element is already connected to another source
-        // This shouldn't happen with our WeakMap check, but handle it gracefully
-        logger.debug('Audio element already connected, closing new context');
-        if (audioContext.state !== 'closed') {
-          audioContext.close().catch((err) => {
-            logger.error('Error closing unused audio context:', err);
-          });
+
+        audioChainRef.current = chain;
+        audioChainStorage.set(audio, chain);
+
+        logger.info('✓ Professional Web Audio API chain initialized successfully');
+        logger.debug(`Chain: ${filters.length} EQ bands + Bass/Treble Tone + Limiter`);
+        logger.debug(`Frequencies: ${EQUALIZER_BANDS.map(b => b.frequency + 'Hz').join(', ')}`);
+        
+      } catch (error: unknown) {
+        const err = error as Error;
+        if (err.message && err.message.includes('already connected')) {
+          logger.debug('Audio source already connected (expected)');
+        } else {
+          logger.error('Failed to initialize audio chain:', error);
+          logger.warn('Falling back to basic HTML5 audio');
         }
-        // Fall through to use basic HTML5 audio
       }
-    } catch (error) {
-      logger.error('Web Audio API not supported:', error);
-    }
-    
-    // Fallback: if Web Audio API setup failed, equalizer will be disabled
-    if (!audioContextRef.current && !audioContextStorage.has(audio)) {
-      logger.warn('Using basic HTML5 audio without equalizer');
-    }
-  }, []);
+    };
 
-  // Update equalizer when settings change
+    // Try immediate init
+    audio.addEventListener('play', initAudioChain, { once: true });
+
+    return () => {
+      audio.removeEventListener('play', initAudioChain);
+      if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
+    };
+  }, [volume]);
+
+  // Update equalizer settings
   useEffect(() => {
-    const filters = filtersRef.current;
-    if (filters.length === 0) return;
+    const chain = audioChainRef.current;
+    if (!chain || !chain.connected || chain.filters.length === 0) {
+      return;
+    }
 
-    const { bass, lowerMid, mid, upperMid, treble, presence, brilliance } = equalizerSettings;
-    const gains = [bass, lowerMid, mid, upperMid, treble, presence, brilliance];
+    try {
+      const gains = [
+        equalizerSettings.band32,
+        equalizerSettings.band64,
+        equalizerSettings.band125,
+        equalizerSettings.band250,
+        equalizerSettings.band500,
+        equalizerSettings.band1k,
+        equalizerSettings.band2k,
+        equalizerSettings.band4k,
+        equalizerSettings.band8k,
+        equalizerSettings.band16k,
+      ];
 
-    // Apply preset values
-    if (equalizerSettings.preset !== 'flat') {
-      const presets = {
-        rock: [5, 3, -1, 2, 4, 3, 2],
-        pop: [2, 1, 0, 2, 3, 2, 1],
-        jazz: [3, 2, 1, 2, 1, 2, 3],
-        classical: [3, 2, 1, 0, 2, 3, 4],
-        electronic: [4, 2, 0, 3, 4, 3, 2],
-        vocal: [1, 3, 4, 3, 1, 2, 1],
-        bass_boost: [8, 5, 2, 0, 0, 0, 0],
-        treble_boost: [0, 0, 0, 2, 4, 6, 8]
-      };
-
-      const presetGains = presets[equalizerSettings.preset as keyof typeof presets] || gains;
-      presetGains.forEach((gain, index) => {
-        if (filters[index]) {
-          filters[index].gain.setValueAtTime(gain, audioContextRef.current?.currentTime || 0);
-        }
-      });
-    } else {
+      const now = chain.context.currentTime;
+      
+      // Update 10-band EQ
       gains.forEach((gain, index) => {
-        if (filters[index]) {
-          filters[index].gain.setValueAtTime(gain, audioContextRef.current?.currentTime || 0);
+        if (chain.filters[index]) {
+          const targetGain = equalizerSettings.enabled ? gain : 0;
+          chain.filters[index].gain.cancelScheduledValues(now);
+          chain.filters[index].gain.setValueAtTime(chain.filters[index].gain.value, now);
+          chain.filters[index].gain.linearRampToValueAtTime(targetGain, now + 0.05);
         }
       });
+
+      // Update Advanced Bass Tone control
+      const targetBassTone = equalizerSettings.enabled ? equalizerSettings.bassTone : 0;
+      chain.bassToneFilter.gain.cancelScheduledValues(now);
+      chain.bassToneFilter.gain.setValueAtTime(chain.bassToneFilter.gain.value, now);
+      chain.bassToneFilter.gain.linearRampToValueAtTime(targetBassTone, now + 0.05);
+
+      // Update Advanced Treble Tone control
+      const targetTrebleTone = equalizerSettings.enabled ? equalizerSettings.trebleTone : 0;
+      chain.trebleToneFilter.gain.cancelScheduledValues(now);
+      chain.trebleToneFilter.gain.setValueAtTime(chain.trebleToneFilter.gain.value, now);
+      chain.trebleToneFilter.gain.linearRampToValueAtTime(targetTrebleTone, now + 0.05);
+
+      logger.debug(`EQ updated: ${equalizerSettings.preset}, Bass: ${equalizerSettings.bassTone}dB, Treble: ${equalizerSettings.trebleTone}dB, enabled: ${equalizerSettings.enabled}`);
+    } catch (error) {
+      logger.error('Failed to update EQ:', error);
     }
   }, [equalizerSettings]);
 
@@ -242,29 +283,29 @@ export const useAudioManager = (
     const currentTrack = playlist[currentTrackIndex];
     if (!audio || !currentTrack) return;
 
-    // Load the new track
     if (audio.src !== currentTrack.url) {
+      logger.debug('Loading track:', currentTrack.title);
       audio.src = currentTrack.url;
       audio.load();
       
-      // Auto-play if playing state is true
       if (isPlaying) {
-        // Resume AudioContext if suspended (Chromium requirement)
-        if (audioContextRef.current?.state === 'suspended') {
-          audioContextRef.current.resume().catch((err) => {
-            logger.error('Failed to resume audio context:', err);
-          });
-        }
-
-        audio.play()
-          .then(() => {
-            fadeIn(800); // Fade in when auto-playing new track
-            logger.debug('Auto-play started for new track with fade in');
-          })
-          .catch((error) => {
-            logger.error('Failed to auto-play:', error);
-            setIsPlaying(false); // Update state if auto-play fails
-          });
+        const playNewTrack = async () => {
+          try {
+            // Resume audio context if suspended
+            const chain = audioChainRef.current;
+            if (chain?.context && chain.context.state === 'suspended') {
+              await chain.context.resume();
+            }
+            
+            await audio.play();
+            fadeIn(800);
+            logger.info('✓ Auto-play started');
+          } catch (error) {
+            logger.error('Auto-play failed:', error);
+            setIsPlaying(false);
+          }
+        };
+        playNewTrack();
       }
     }
   }, [playlist, currentTrackIndex, isPlaying, setIsPlaying, fadeIn]);
@@ -277,116 +318,104 @@ export const useAudioManager = (
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleLoadedMetadata = () => {
       setDuration(audio.duration);
-      logger.debug(`Audio loaded: duration=${audio.duration.toFixed(2)}s`);
+      logger.debug(`Audio loaded: ${audio.duration.toFixed(2)}s`);
     };
     
     const handleEnded = () => {
       logger.debug('Track ended');
       if (repeatMode === 2) {
-        // Repeat one - replay current track
         audio.currentTime = 0;
-        audio.play().catch((err) => {
-          logger.error('Failed to play repeated track:', err);
-        });
+        audio.play().catch(err => logger.error('Repeat play failed:', err));
       } else {
-        // Normal or Repeat All mode - let handleNext decide what to do
-        // handleNext will handle both shuffle and normal modes, as well as repeat all
         handleNext();
       }
     };
     
     const handleError = (e: Event) => {
       const target = e.target as HTMLAudioElement;
-      const error = target.error;
-      const errorMessage = getAudioErrorMessage(error);
-      
-      logger.error('Audio playback error:', errorMessage);
-      
-      // Try to recover by pausing
+      const errorMessage = getAudioErrorMessage(target.error);
+      logger.error('Playback error:', errorMessage);
       setIsPlaying(false);
-    };
-    
-    const handleCanPlay = () => {
-      logger.debug('Audio can play');
-    };
-    
-    const handleWaiting = () => {
-      logger.debug('Audio buffering...');
-    };
-    
-    const handleStalled = () => {
-      logger.warn('Audio playback stalled');
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
-    audio.addEventListener('canplay', handleCanPlay);
-    audio.addEventListener('waiting', handleWaiting);
-    audio.addEventListener('stalled', handleStalled);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
-      audio.removeEventListener('canplay', handleCanPlay);
-      audio.removeEventListener('waiting', handleWaiting);
-      audio.removeEventListener('stalled', handleStalled);
     };
-  }, [repeatMode, currentTrackIndex, playlist.length, handleNext, setCurrentTime, setDuration, setIsPlaying]);
+  }, [repeatMode, handleNext, setCurrentTime, setDuration, setIsPlaying]);
 
   // Update volume
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume / 100;
+    const audio = audioRef.current;
+    const chain = audioChainRef.current;
+    
+    if (!audio) return;
+
+    const targetVolume = volume / 100;
+
+    if (chain?.gainNode && chain.connected && !isFadingRef.current) {
+      try {
+        const now = chain.context.currentTime;
+        chain.gainNode.gain.cancelScheduledValues(now);
+        chain.gainNode.gain.setValueAtTime(chain.gainNode.gain.value, now);
+        chain.gainNode.gain.linearRampToValueAtTime(targetVolume, now + 0.1);
+      } catch {
+        audio.volume = targetVolume;
+      }
+    } else if (!isFadingRef.current) {
+      audio.volume = targetVolume;
     }
   }, [volume]);
 
+  // Play/Pause handler
   const handlePlayPause = useCallback(() => {
     const audio = audioRef.current;
     const currentTrack = playlist[currentTrackIndex];
     if (!audio || !currentTrack) return;
 
     if (isPlaying) {
-      // Fade out before pausing
       fadeOut(800).then(() => {
         audio.pause();
         setIsPlaying(false);
-        logger.debug('Playback paused with fade out');
+        logger.debug('Paused');
       });
     } else {
-      // Resume AudioContext if suspended (required for Chromium-based browsers)
-      if (audioContextRef.current?.state === 'suspended') {
-        audioContextRef.current.resume().catch((err) => {
-          logger.error('Failed to resume audio context:', err);
-        });
-      }
-
-      // Ensure the correct audio source is loaded
-      if (audio.src !== currentTrack.url) {
-        logger.debug('Loading new track:', currentTrack.title);
-        audio.src = currentTrack.url;
-        audio.load();
-      }
-      
-      // Only update state if play() succeeds
-      audio.play()
-        .then(() => {
-          setIsPlaying(true);
-          fadeIn(800); // Fade in after starting playback
-          logger.debug('Playback started with fade in');
-        })
-        .catch((error) => {
-          logger.error('Failed to play audio:', error);
-          setIsPlaying(false); // Ensure state stays false if play fails
-          
-          // Handle autoplay policies
-          if (error.name === 'NotAllowedError') {
-            logger.info('Autoplay was prevented. User interaction required to start playback.');
+      const startPlayback = async () => {
+        try {
+          // Resume audio context if needed
+          const chain = audioChainRef.current;
+          if (chain?.context && chain.context.state === 'suspended') {
+            await chain.context.resume();
+            logger.debug('Audio context resumed');
           }
-        });
+
+          // Load if needed
+          if (audio.src !== currentTrack.url) {
+            logger.debug('Loading:', currentTrack.title);
+            audio.src = currentTrack.url;
+            audio.load();
+          }
+          
+          await audio.play();
+          setIsPlaying(true);
+          fadeIn(800);
+          logger.info('✓ Playing');
+          
+        } catch (error: unknown) {
+          const err = error as Error;
+          logger.error('Play failed:', err.message);
+          setIsPlaying(false);
+        }
+      };
+
+      startPlayback();
     }
   }, [isPlaying, playlist, currentTrackIndex, setIsPlaying, fadeIn, fadeOut]);
 
@@ -407,10 +436,16 @@ export const useAudioManager = (
     setCurrentTime(time);
   }, [setCurrentTime]);
 
+  const getAnalyser = useCallback(() => {
+    // Could add analyzer node here in future
+    return null;
+  }, []);
+
   return {
     audioRef,
     handlePlayPause,
     handleProgressChange,
-    handleSeek
+    handleSeek,
+    getAnalyser,
   };
 };

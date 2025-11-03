@@ -133,83 +133,141 @@ export const AUDIO_QUALITY = {
 } as const;
 
 /**
- * Equalizer frequency bands (7-band EQ)
- * Frequencies in Hz with standard Q values
+ * Equalizer frequency bands (10-band professional EQ)
+ * ISO standard frequencies optimized for music production
+ * Q values: 1.41 for precise peaking, 0.7 for smooth shelving
  */
 export const EQUALIZER_BANDS = [
-  { frequency: 60, label: '60 Hz', description: 'Sub-bass', q: 1.0 },
-  { frequency: 170, label: '170 Hz', description: 'Bass', q: 1.0 },
-  { frequency: 350, label: '350 Hz', description: 'Lower Mid', q: 1.0 },
-  { frequency: 1000, label: '1 kHz', description: 'Mid', q: 1.0 },
-  { frequency: 3500, label: '3.5 kHz', description: 'Upper Mid', q: 1.0 },
-  { frequency: 10000, label: '10 kHz', description: 'Presence', q: 1.0 },
-  { frequency: 14000, label: '14 kHz', description: 'Brilliance', q: 1.0 },
+  { frequency: 32, label: '32 Hz', description: 'Sub Bass', q: 0.7, key: 'band32' as const },
+  { frequency: 64, label: '64 Hz', description: 'Bass', q: 1.41, key: 'band64' as const },
+  { frequency: 125, label: '125 Hz', description: 'Bass/Low Mid', q: 1.41, key: 'band125' as const },
+  { frequency: 250, label: '250 Hz', description: 'Low Mid', q: 1.41, key: 'band250' as const },
+  { frequency: 500, label: '500 Hz', description: 'Mid', q: 1.41, key: 'band500' as const },
+  { frequency: 1000, label: '1 kHz', description: 'Mid', q: 1.41, key: 'band1k' as const },
+  { frequency: 2000, label: '2 kHz', description: 'Upper Mid', q: 1.41, key: 'band2k' as const },
+  { frequency: 4000, label: '4 kHz', description: 'Presence', q: 1.41, key: 'band4k' as const },
+  { frequency: 8000, label: '8 kHz', description: 'Brilliance', q: 1.41, key: 'band8k' as const },
+  { frequency: 16000, label: '16 kHz', description: 'Air', q: 0.7, key: 'band16k' as const },
 ] as const;
 
 /**
  * Equalizer presets with gain values for each band
- * Gain values in dB (-12 to +12)
+ * Gain values in dB (-12 to +12 for studio-grade control)
+ * Order: 32Hz, 64Hz, 125Hz, 250Hz, 500Hz, 1kHz, 2kHz, 4kHz, 8kHz, 16kHz
+ * Plus bassTone and trebleTone for enhanced low/high frequency control
  */
 export const EQUALIZER_PRESETS = {
   flat: {
     name: 'Flat',
-    description: 'No equalization',
-    gains: [0, 0, 0, 0, 0, 0, 0],
+    description: 'No equalization - pure audio',
+    gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    bassTone: 0,
+    trebleTone: 0,
   },
   rock: {
     name: 'Rock',
-    description: 'Enhanced bass and treble',
-    gains: [5, 3, -1, 2, 4, 3, 2],
+    description: 'Powerful bass and crisp highs',
+    gains: [3, 4, 2, 0, -1, 1, 2, 3, 4, 2],
+    bassTone: 4,
+    trebleTone: 3,
   },
   pop: {
     name: 'Pop',
     description: 'Balanced with enhanced presence',
-    gains: [2, 1, 0, 2, 3, 2, 1],
+    gains: [2, 2, 1, 1, 0, 1, 2, 3, 2, 1],
+    bassTone: 3,
+    trebleTone: 3,
   },
   jazz: {
     name: 'Jazz',
-    description: 'Warm with clear highs',
-    gains: [3, 2, 1, 2, 1, 2, 3],
+    description: 'Warm mids with smooth highs',
+    gains: [2, 3, 3, 2, 2, 1, 2, 3, 3, 4],
+    bassTone: 3,
+    trebleTone: 2,
   },
   classical: {
     name: 'Classical',
-    description: 'Natural with extended highs',
-    gains: [3, 2, 1, 0, 2, 3, 4],
+    description: 'Natural with extended air',
+    gains: [1, 2, 2, 1, 0, 1, 2, 3, 4, 5],
+    bassTone: 2,
+    trebleTone: 6,
   },
   electronic: {
     name: 'Electronic',
-    description: 'Deep bass with sparkle',
-    gains: [4, 2, 0, 3, 4, 3, 2],
+    description: 'Deep bass with sparkling highs',
+    gains: [4, 4, 2, 1, 0, 1, 2, 3, 4, 3],
+    bassTone: 6,
+    trebleTone: 4,
   },
   vocal: {
     name: 'Vocal',
-    description: 'Enhanced mid-range clarity',
-    gains: [1, 3, 4, 3, 1, 2, 1],
+    description: 'Enhanced clarity for voices',
+    gains: [-1, 0, 1, 2, 4, 3, 2, 2, 1, 0],
+    bassTone: -2,
+    trebleTone: 2,
   },
   bass_boost: {
     name: 'Bass Boost',
-    description: 'Maximum bass enhancement',
-    gains: [8, 5, 2, 0, 0, 0, 0],
+    description: 'Maximum low-end impact',
+    gains: [6, 5, 4, 2, 1, 0, 0, 0, 0, 0],
+    bassTone: 7,
+    trebleTone: 0,
   },
   treble_boost: {
     name: 'Treble Boost',
-    description: 'Maximum treble enhancement',
-    gains: [0, 0, 0, 2, 4, 6, 8],
+    description: 'Crystal clear highs',
+    gains: [0, 0, 0, 0, 1, 2, 3, 5, 6, 5],
+    bassTone: 0,
+    trebleTone: 7,
   },
   acoustic: {
     name: 'Acoustic',
-    description: 'Natural acoustic sound',
-    gains: [4, 3, 2, 1, 2, 3, 2],
+    description: 'Natural acoustic warmth',
+    gains: [3, 4, 3, 2, 1, 1, 2, 3, 3, 2],
+    bassTone: 4,
+    trebleTone: 3,
   },
   lounge: {
     name: 'Lounge',
-    description: 'Smooth and relaxed',
-    gains: [2, 1, 0, 1, 2, 1, 0],
+    description: 'Smooth and relaxing',
+    gains: [2, 3, 2, 1, 0, 0, 1, 2, 2, 1],
+    bassTone: 3,
+    trebleTone: 1,
   },
   podcast: {
     name: 'Podcast',
-    description: 'Optimized for voice',
-    gains: [0, 2, 4, 5, 3, 1, 0],
+    description: 'Optimized for spoken word',
+    gains: [-2, -1, 1, 3, 5, 5, 4, 2, 0, -1],
+    bassTone: -3,
+    trebleTone: 2,
+  },
+  studio: {
+    name: 'Studio Monitor',
+    description: 'Flat reference for mixing',
+    gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    bassTone: 0,
+    trebleTone: 0,
+  },
+  dance: {
+    name: 'Dance',
+    description: 'Club-ready bass and energy',
+    gains: [5, 5, 3, 1, 0, 1, 2, 3, 4, 2],
+    bassTone: 7,
+    trebleTone: 4,
+  },
+  hip_hop: {
+    name: 'Hip Hop',
+    description: 'Deep bass with punchy mids',
+    gains: [5, 6, 4, 2, 0, 1, 1, 2, 1, 1],
+    bassTone: 6,
+    trebleTone: 2,
+  },
+  metal: {
+    name: 'Metal',
+    description: 'Aggressive and powerful',
+    gains: [4, 3, 2, -1, -2, 0, 2, 4, 5, 3],
+    bassTone: 4,
+    trebleTone: 5,
   },
 } as const;
 

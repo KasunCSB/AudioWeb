@@ -1,5 +1,9 @@
 export const PlayerStyles = () => (
   <style jsx global>{`
+    .slider {
+      transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     .slider::-webkit-slider-thumb {
       appearance: none;
       height: 16px;
@@ -8,6 +12,18 @@ export const PlayerStyles = () => (
       background: #ffffff;
       cursor: pointer;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                  box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .slider::-webkit-slider-thumb:active {
+      transform: scale(1.05);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
     }
 
     .slider::-moz-range-thumb {
@@ -18,6 +34,18 @@ export const PlayerStyles = () => (
       cursor: pointer;
       border: none;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                  box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .slider::-moz-range-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .slider::-moz-range-thumb:active {
+      transform: scale(1.05);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
     }
 
     /* Global Scroll Behavior */

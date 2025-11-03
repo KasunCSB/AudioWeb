@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 interface ProgressBarProps {
   currentTime: number;
@@ -13,10 +13,49 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragTime, setDragTime] = useState(0);
+  const [smoothTime, setSmoothTime] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const lastTimeRef = useRef(0);
 
-  // Use dragging time if dragging, otherwise use actual current time
-  const displayTime = isDragging ? dragTime : currentTime;
+  // Use dragging time if dragging, otherwise use smooth interpolated time
+  const displayTime = isDragging ? dragTime : smoothTime;
+
+  // Smooth time interpolation using requestAnimationFrame
+  useEffect(() => {
+    if (isDragging) {
+      // Don't interpolate while dragging
+      return;
+    }
+
+    const interpolateTime = () => {
+      setSmoothTime(prev => {
+        const diff = currentTime - prev;
+        
+        // If the difference is large (seeking occurred), jump immediately
+        if (Math.abs(diff) > 1) {
+          lastTimeRef.current = currentTime;
+          return currentTime;
+        }
+        
+        // Smooth interpolation for small changes
+        const smoothFactor = 0.15;
+        const newTime = prev + diff * smoothFactor;
+        lastTimeRef.current = newTime;
+        return newTime;
+      });
+      
+      animationFrameRef.current = requestAnimationFrame(interpolateTime);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(interpolateTime);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [currentTime, isDragging]);
 
   const formatTime = (seconds: number) => {
     if (!isFinite(seconds) || seconds < 0) return '0:00';
@@ -37,15 +76,16 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = Number(e.target.value);
     if (isDragging) {
       setDragTime(newTime);
     } else {
       // If not dragging but change happens (e.g., click), seek immediately
+      setSmoothTime(newTime);
       onSeek(newTime);
     }
-  };
+  }, [isDragging, onSeek]);
 
   // Handle touch events
   const handleTouchStart = () => {

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { ScrollingText } from './player/ScrollingText';
 
 interface AudioTrack {
   id: string;
@@ -365,12 +366,18 @@ export const NowPlayingBar: React.FC<NowPlayingBarProps> = ({
               <span className={`w-1 h-1 rounded-full flex-shrink-0 ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
               <span className="text-[10px] text-white/60 font-medium">{isPlaying ? 'Now Playing' : 'Paused'}</span>
             </div>
-            <p className="text-xs font-semibold text-white truncate">
-              {currentTrack.title}
-            </p>
-            <p className="text-[10px] text-white/60 truncate">
-              {currentTrack.artist}
-            </p>
+            <ScrollingText
+              text={currentTrack.title}
+              className="text-xs font-semibold text-white"
+              speed={50}
+              pauseDuration={1000}
+            />
+            <ScrollingText
+              text={currentTrack.artist}
+              className="text-[10px] text-white/60"
+              speed={50}
+              pauseDuration={1000}
+            />
           </div>
 
           {/* Up Next (only shows when there's actually a next track) */}
@@ -388,12 +395,18 @@ export const NowPlayingBar: React.FC<NowPlayingBarProps> = ({
                 <span className="w-1 h-1 rounded-full flex-shrink-0 bg-blue-500"></span>
                 <span className="text-[10px] text-white/60 font-medium">Up Next</span>
               </div>
-              <p className="text-xs font-semibold text-white truncate">
-                {nextTrack.title}
-              </p>
-              <p className="text-[10px] text-white/60 truncate">
-                {nextTrack.artist}
-              </p>
+              <ScrollingText
+                text={nextTrack.title}
+                className="text-xs font-semibold text-white"
+                speed={50}
+                pauseDuration={1000}
+              />
+              <ScrollingText
+                text={nextTrack.artist}
+                className="text-[10px] text-white/60"
+                speed={50}
+                pauseDuration={1000}
+              />
             </div>
           )}
 
@@ -464,9 +477,12 @@ export const NowPlayingBar: React.FC<NowPlayingBarProps> = ({
           >
             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mr-2 ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
             <span className="text-xs text-white/60 font-medium mr-2 flex-shrink-0">{isPlaying ? 'Now Playing:' : 'Paused:'}</span>
-            <span className="text-sm font-semibold text-white truncate mr-1">{currentTrack.title}</span>
-            <span className="text-xs text-white/60 flex-shrink-0">by</span>
-            <span className="text-xs text-white/70 truncate ml-1">{currentTrack.artist}</span>
+            <ScrollingText
+              text={`${currentTrack.title} by ${currentTrack.artist}`}
+              className="text-sm font-semibold text-white flex-1"
+              speed={50}
+              pauseDuration={1000}
+            />
           </div>
 
           {/* Up Next (only shows when there's actually a next track) */}
@@ -482,9 +498,12 @@ export const NowPlayingBar: React.FC<NowPlayingBarProps> = ({
             >
               <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mr-2 bg-blue-500"></span>
               <span className="text-xs text-white/60 font-medium mr-2 flex-shrink-0">Up Next:</span>
-              <span className="text-sm font-semibold text-white truncate mr-1">{nextTrack.title}</span>
-              <span className="text-xs text-white/60 flex-shrink-0">by</span>
-              <span className="text-xs text-white/70 truncate ml-1">{nextTrack.artist}</span>
+              <ScrollingText
+                text={`${nextTrack.title} by ${nextTrack.artist}`}
+                className="text-sm font-semibold text-white flex-1"
+                speed={50}
+                pauseDuration={1000}
+              />
             </div>
           )}
 

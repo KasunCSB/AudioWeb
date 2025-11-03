@@ -1,6 +1,7 @@
 import { AudioTrack } from './types';
 import { ResizablePopup } from './ResizablePopup';
 import { AnimatedMusicBars } from './AnimatedMusicBars';
+import { ScrollingText } from './ScrollingText';
 
 interface PlaylistPopupProps {
   show: boolean;
@@ -74,19 +75,25 @@ export const PlaylistPopup: React.FC<PlaylistPopupProps> = ({
                 />
               ) : (
                 <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white/60" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.814L4.5 13.93A1 1 0 014 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2a1 1 0 01.5-.069l3.883-2.884a1 1 0 011 0z"/>
+                  <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                   </svg>
                 </div>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`font-medium truncate text-sm ${track.isActive ? 'text-white' : 'text-white/80'}`}>
-                {track.title}
-              </p>
-              <p className="text-xs text-white/60 truncate">
-                {track.artist}
-              </p>
+              <ScrollingText
+                text={track.title}
+                className={`font-medium text-sm ${track.isActive ? 'text-white' : 'text-white/80'}`}
+                speed={50}
+                pauseDuration={1000}
+              />
+              <ScrollingText
+                text={track.artist}
+                className="text-xs text-white/60"
+                speed={50}
+                pauseDuration={1000}
+              />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-white/60">{formatTime(track.duration)}</span>

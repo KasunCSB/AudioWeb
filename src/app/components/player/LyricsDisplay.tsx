@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AudioTrack } from './types';
+import { ScrollingText } from './ScrollingText';
 
 interface LyricsDisplayProps {
   currentTrack: AudioTrack | null;
@@ -290,9 +291,12 @@ export const LyricsDisplay: React.FC<LyricsDisplayProps> = ({
       <div className="h-full flex flex-col px-3 sm:px-6 py-4 sm:py-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 flex-shrink-0 gap-2 sm:gap-0">
           <h3 className="text-lg sm:text-xl font-semibold text-white">Lyrics</h3>
-          <div className="text-xs sm:text-sm text-white/60 truncate">
-            {currentTrack.title} - {currentTrack.artist}
-          </div>
+          <ScrollingText
+            text={`${currentTrack.title} - ${currentTrack.artist}`}
+            className="text-xs sm:text-sm text-white/60"
+            speed={50}
+            pauseDuration={1000}
+          />
         </div>
         
         <div className="flex-1 relative overflow-hidden px-1 sm:px-2 py-1 sm:py-2">
@@ -373,9 +377,12 @@ export const LyricsDisplay: React.FC<LyricsDisplayProps> = ({
       <div className="px-3 sm:px-4 py-3 sm:py-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-3 gap-1 sm:gap-0">
           <h3 className="text-lg sm:text-xl font-semibold text-white">Lyrics</h3>
-          <div className="text-xs sm:text-sm text-white/60 truncate">
-            {currentTrack.title} - {currentTrack.artist}
-          </div>
+          <ScrollingText
+            text={`${currentTrack.title} - ${currentTrack.artist}`}
+            className="text-xs sm:text-sm text-white/60"
+            speed={50}
+            pauseDuration={1000}
+          />
         </div>
         <div className="max-w-4xl mx-auto px-1 sm:px-2">
           <div className="text-white/80 leading-relaxed whitespace-pre-line text-base sm:text-lg text-center px-2 sm:px-3"

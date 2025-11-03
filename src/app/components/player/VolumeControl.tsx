@@ -1,3 +1,5 @@
+import { useState, useEffect, useRef } from 'react';
+
 interface VolumeControlProps {
   volume: number;
   onVolumeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -7,23 +9,56 @@ export const VolumeControl: React.FC<VolumeControlProps> = ({
   volume,
   onVolumeChange
 }) => {
+  const [smoothVolume, setSmoothVolume] = useState(volume);
+  const animationFrameRef = useRef<number | null>(null);
+
+  // Smooth volume interpolation
+  useEffect(() => {
+    const interpolateVolume = () => {
+      setSmoothVolume(prev => {
+        const diff = volume - prev;
+        
+        // If the difference is large, jump immediately
+        if (Math.abs(diff) > 5) {
+          return volume;
+        }
+        
+        // Smooth interpolation for small changes
+        const smoothFactor = 0.2;
+        return prev + diff * smoothFactor;
+      });
+      
+      animationFrameRef.current = requestAnimationFrame(interpolateVolume);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(interpolateVolume);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [volume]);
+
   // Determine which speaker icon to show based on volume level
   const getSpeakerIcon = () => {
-    if (volume === 0) {
+    const displayVolume = Math.round(smoothVolume);
+    
+    if (displayVolume === 0) {
       // Muted - speaker with X
       return (
         <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white/60 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
           <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
         </svg>
       );
-    } else if (volume <= 33) {
+    } else if (displayVolume <= 33) {
       // Low volume (1-33%) - speaker with no waves
       return (
         <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white/60 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
           <path d="M3 9v6h4l5 5V4L7 9H3z"/>
         </svg>
       );
-    } else if (volume <= 66) {
+    } else if (displayVolume <= 66) {
       // Medium volume (34-66%) - speaker with one wave
       return (
         <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white/60 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
@@ -49,13 +84,13 @@ export const VolumeControl: React.FC<VolumeControlProps> = ({
         max="100"
         value={volume}
         onChange={onVolumeChange}
-        className="flex-1 h-2 sm:h-3 bg-white/20 rounded-lg appearance-none cursor-pointer mobile-no-select touch-target"
+        className="flex-1 h-2 sm:h-3 bg-white/20 rounded-lg appearance-none cursor-pointer slider mobile-no-select touch-target"
         style={{
-          background: `linear-gradient(to right, #ffffff ${volume}%, rgba(255,255,255,0.2) ${volume}%)`,
+          background: `linear-gradient(to right, #ffffff ${smoothVolume}%, rgba(255,255,255,0.2) ${smoothVolume}%)`,
           minHeight: '44px'
         }}
       />
-      <span className="text-xs sm:text-sm text-white/60 min-w-[2ch] flex-shrink-0">{volume}</span>
+      <span className="text-xs sm:text-sm text-white/60 min-w-[2ch] flex-shrink-0">{Math.round(smoothVolume)}</span>
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import { AudioTrack } from './types';
+import { ScrollingText } from './ScrollingText';
 
 interface AlbumArtProps {
   currentTrack: AudioTrack | null;
@@ -42,7 +43,7 @@ export const AlbumArt: React.FC<AlbumArtProps> = ({
               </svg>
             </div>
             <div>
-              <h3 className="text-xl sm:text-2xl font-semibold text-white mb-3">Upload your music</h3>
+              <h3 className="text-xl sm:text-2xl font-semibold text-white mb-3">Upload Your Music</h3>
               <p className="text-white/70 text-base sm:text-lg mb-4">Drag & drop audio files here</p>
               <p className="text-white/50 text-sm">or click to browse your files</p>
             </div>
@@ -87,11 +88,24 @@ export const AlbumArt: React.FC<AlbumArtProps> = ({
       </div>
 
       <div className="text-center">
-        <h1 className="text-xl font-semibold text-white mb-1 truncate">
-          {currentTrack.title}
-        </h1>
-        <p className="text-white/70 mb-1 truncate">{currentTrack.artist}</p>
-        <p className="text-white/50 text-sm truncate">{currentTrack.album}</p>
+        <ScrollingText
+          text={currentTrack.title}
+          className="text-xl font-semibold text-white mb-1"
+          speed={50}
+          pauseDuration={1200}
+        />
+        <ScrollingText
+          text={currentTrack.artist}
+          className="text-white/70 mb-1"
+          speed={50}
+          pauseDuration={1200}
+        />
+        <ScrollingText
+          text={currentTrack.album || 'Unknown Album'}
+          className="text-white/50 text-sm"
+          speed={50}
+          pauseDuration={1200}
+        />
       </div>
     </div>
   );

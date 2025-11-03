@@ -241,13 +241,6 @@ export const EQUALIZER_PRESETS = {
     bassTone: -3,
     trebleTone: 2,
   },
-  studio: {
-    name: 'Studio Monitor',
-    description: 'Flat reference for mixing',
-    gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    bassTone: 0,
-    trebleTone: 0,
-  },
   dance: {
     name: 'Dance',
     description: 'Club-ready bass and energy',

@@ -202,7 +202,7 @@ export const useAudioManager = (
         audioChainRef.current = chain;
         audioChainStorage.set(audio, chain);
 
-        logger.info('✓ Professional Web Audio API chain initialized successfully');
+        logger.info('Professional Web Audio API chain initialized successfully');
         logger.debug(`Chain: ${filters.length} EQ bands + Bass/Treble Tone + Limiter`);
         logger.debug(`Frequencies: ${EQUALIZER_BANDS.map(b => b.frequency + 'Hz').join(', ')}`);
         
@@ -299,7 +299,7 @@ export const useAudioManager = (
             
             await audio.play();
             fadeIn(800);
-            logger.info('✓ Auto-play started');
+            logger.info('Auto-play started');
           } catch (error) {
             logger.error('Auto-play failed:', error);
             setIsPlaying(false);
@@ -406,7 +406,7 @@ export const useAudioManager = (
           await audio.play();
           setIsPlaying(true);
           fadeIn(800);
-          logger.info('✓ Playing');
+          logger.info('Playing');
           
         } catch (error: unknown) {
           const err = error as Error;

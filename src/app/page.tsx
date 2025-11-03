@@ -72,8 +72,7 @@ const Header = ({ onPlayClick }: { onPlayClick: () => void }) => (
           sizes="(max-width: 640px) 280px, (max-width: 768px) 320px, (max-width: 1024px) 380px, (max-width: 1280px) 420px, 500px"
           alt="hero_img"
           src="/images/hero-img.svg"
-          loading="eager"
-          priority
+          loading="lazy"
           onContextMenu={e => e.preventDefault()}
         />
         <span className="mt-2 text-xs sm:text-sm text-white/70 font-sans text-center">

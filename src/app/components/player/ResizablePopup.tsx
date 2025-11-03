@@ -6,7 +6,7 @@ interface ResizablePopupProps {
   onClose: () => void;
   onMouseDown: (e: React.MouseEvent) => void;
   title: string;
-  children: React.ReactNode;
+  children: React.ReactNode | ((size: { width: number; height: number }) => React.ReactNode);
   className?: string;
   style?: React.CSSProperties;
   minWidth?: number;
@@ -174,7 +174,7 @@ export const ResizablePopup: React.FC<ResizablePopupProps> = ({
             </div>
           </div>
           <div className="scroll-content custom-scrollbar" ref={scrollContentRef}>
-            {children}
+            {typeof children === 'function' ? children(size) : children}
           </div>
         </div>
         

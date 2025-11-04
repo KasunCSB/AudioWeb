@@ -367,7 +367,7 @@ export const EqualizerPopup: React.FC<EqualizerPopupProps> = ({
                         {settings.bassTone > 0 ? '+' : ''}{settings.bassTone.toFixed(1)}dB
                       </span>
                     </label>
-                    <div className="text-[10px] text-white/40 mb-2">Deep bass enhancement (100Hz lowshelf)</div>
+                    <div className="text-[10px] text-white/40 mb-2">Deep bass enhancement (65Hz, natural response)</div>
                     
                     {/* Custom Horizontal Slider */}
                     <div className="relative">
@@ -485,7 +485,7 @@ export const EqualizerPopup: React.FC<EqualizerPopupProps> = ({
                         {settings.trebleTone > 0 ? '+' : ''}{settings.trebleTone.toFixed(1)}dB
                       </span>
                     </label>
-                    <div className="text-[10px] text-white/40 mb-2">Crisp treble enhancement (8kHz highshelf)</div>
+                    <div className="text-[10px] text-white/40 mb-2">Crystal clear treble (11kHz, natural air)</div>
                     
                     {/* Custom Horizontal Slider */}
                     <div className="relative">

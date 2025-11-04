@@ -168,99 +168,99 @@ export const EQUALIZER_PRESETS = {
     name: 'Rock',
     description: 'Powerful bass and crisp highs',
     gains: [3, 4, 2, 0, -1, 1, 2, 3, 4, 2],
-    bassTone: 4,
-    trebleTone: 3,
+    bassTone: 5,  // Increased for better integration with dual-stage system
+    trebleTone: 4, // Increased for better balance
   },
   pop: {
     name: 'Pop',
     description: 'Balanced with enhanced presence',
     gains: [2, 2, 1, 1, 0, 1, 2, 3, 2, 1],
-    bassTone: 3,
-    trebleTone: 3,
+    bassTone: 4,  // Increased for better presence
+    trebleTone: 4, // Balanced with bass
   },
   jazz: {
     name: 'Jazz',
     description: 'Warm mids with smooth highs',
     gains: [2, 3, 3, 2, 2, 1, 2, 3, 3, 4],
-    bassTone: 3,
-    trebleTone: 2,
+    bassTone: 4,  // Increased for warmth
+    trebleTone: 3, // Increased for smoother highs
   },
   classical: {
     name: 'Classical',
     description: 'Natural with extended air',
     gains: [1, 2, 2, 1, 0, 1, 2, 3, 4, 5],
-    bassTone: 2,
-    trebleTone: 6,
+    bassTone: 3,  // Increased for natural bass
+    trebleTone: 7, // Maintained for extended air
   },
   electronic: {
     name: 'Electronic',
     description: 'Deep bass with sparkling highs',
     gains: [4, 4, 2, 1, 0, 1, 2, 3, 4, 3],
-    bassTone: 6,
-    trebleTone: 4,
+    bassTone: 7,  // Increased for deeper bass
+    trebleTone: 5, // Increased for more sparkle
   },
   vocal: {
     name: 'Vocal',
     description: 'Enhanced clarity for voices',
     gains: [-1, 0, 1, 2, 4, 3, 2, 2, 1, 0],
-    bassTone: -2,
-    trebleTone: 2,
+    bassTone: -1, // Less negative for better balance
+    trebleTone: 3, // Increased for clarity
   },
   bass_boost: {
     name: 'Bass Boost',
     description: 'Maximum low-end impact',
     gains: [6, 5, 4, 2, 1, 0, 0, 0, 0, 0],
-    bassTone: 7,
-    trebleTone: 0,
+    bassTone: 8,  // Increased for maximum impact with dual-stage
+    trebleTone: 1, // Slight treble for balance
   },
   treble_boost: {
     name: 'Treble Boost',
     description: 'Crystal clear highs',
     gains: [0, 0, 0, 0, 1, 2, 3, 5, 6, 5],
-    bassTone: 0,
-    trebleTone: 7,
+    bassTone: 1,  // Slight bass for balance
+    trebleTone: 8, // Increased for crystal clear highs
   },
   acoustic: {
     name: 'Acoustic',
     description: 'Natural acoustic warmth',
     gains: [3, 4, 3, 2, 1, 1, 2, 3, 3, 2],
-    bassTone: 4,
-    trebleTone: 3,
+    bassTone: 5,  // Increased for warmth
+    trebleTone: 4, // Increased for natural presence
   },
   lounge: {
     name: 'Lounge',
     description: 'Smooth and relaxing',
     gains: [2, 3, 2, 1, 0, 0, 1, 2, 2, 1],
-    bassTone: 3,
-    trebleTone: 1,
+    bassTone: 4,  // Increased for smooth bass
+    trebleTone: 2, // Increased for smoothness
   },
   podcast: {
     name: 'Podcast',
     description: 'Optimized for spoken word',
     gains: [-2, -1, 1, 3, 5, 5, 4, 2, 0, -1],
-    bassTone: -3,
-    trebleTone: 2,
+    bassTone: -2, // Less negative for better balance
+    trebleTone: 3, // Increased for clarity
   },
   dance: {
     name: 'Dance',
     description: 'Club-ready bass and energy',
     gains: [5, 5, 3, 1, 0, 1, 2, 3, 4, 2],
-    bassTone: 7,
-    trebleTone: 4,
+    bassTone: 8,  // Increased for club-ready bass
+    trebleTone: 5, // Increased for energy
   },
   hip_hop: {
     name: 'Hip Hop',
     description: 'Deep bass with punchy mids',
     gains: [5, 6, 4, 2, 0, 1, 1, 2, 1, 1],
-    bassTone: 6,
-    trebleTone: 2,
+    bassTone: 7,  // Increased for deep bass
+    trebleTone: 3, // Increased for presence
   },
   metal: {
     name: 'Metal',
     description: 'Aggressive and powerful',
     gains: [4, 3, 2, -1, -2, 0, 2, 4, 5, 3],
-    bassTone: 4,
-    trebleTone: 5,
+    bassTone: 5,  // Increased for power
+    trebleTone: 6, // Increased for aggression
   },
 } as const;
 

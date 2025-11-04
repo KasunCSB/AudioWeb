@@ -17,9 +17,11 @@ interface AudioChain {
   bassPunchFilter: BiquadFilterNode;   // Additional bass punch at fundamental frequency
   trebleToneFilter: BiquadFilterNode;  // Professional treble highshelf (crystal clear)
   trebleSparkleFilter: BiquadFilterNode; // Additional treble sparkle at air frequencies
+  trebleSmoothingFilter: BiquadFilterNode; // Low-pass filter to remove treble noise and harshness
   compressor: DynamicsCompressorNode;  // Prevents distortion (bass-friendly settings)
   safetyLimiter: DynamicsCompressorNode; // Hard limiter for extreme peaks
   bassCompensationGain: GainNode;      // Dynamic gain compensation for bass consistency
+  presetNormalizationGain: GainNode;   // Normalizes preset volumes for consistent loudness
   gainNode: GainNode;
   connected: boolean;
 }
@@ -159,19 +161,19 @@ export const useAudioManager = (
         });
 
         // Professional Dual-Stage Bass Enhancement
-        // Stage 1: Deep lowshelf for overall bass warmth and depth
+        // Stage 1: Pure bass lowshelf for clean, natural bass foundation
         const bassToneFilter = audioContext.createBiquadFilter();
         bassToneFilter.type = 'lowshelf';
-        bassToneFilter.frequency.value = 65; // Lower frequency for deeper bass foundation
-        bassToneFilter.Q.value = 0.707; // Butterworth response - musical and natural
+        bassToneFilter.frequency.value = 70; // Slightly higher for cleaner, more pure bass (was 65Hz)
+        bassToneFilter.Q.value = 0.6; // Softer Q for pure, clean bass without muddiness (was 0.707)
         bassToneFilter.gain.value = 0;
 
-        // Stage 2: Bass punch filter at fundamental frequency (50-60Hz) for impact
-        // This adds punch and maintains consistency - prevents ducking
+        // Stage 2: Bass punch filter for powerful impact with purity
+        // Optimized Q and frequency for strong punch while maintaining clean bass
         const bassPunchFilter = audioContext.createBiquadFilter();
         bassPunchFilter.type = 'peaking';
-        bassPunchFilter.frequency.value = 55; // Bass fundamental for punch and impact
-        bassPunchFilter.Q.value = 1.2; // Slightly tighter Q for focused punch
+        bassPunchFilter.frequency.value = 56; // Optimal frequency for punch (balanced between 55-58Hz)
+        bassPunchFilter.Q.value = 0.9; // Balanced Q for powerful punch with clean response (was 0.8)
         bassPunchFilter.gain.value = 0;
 
         // Professional Dual-Stage Treble Enhancement
@@ -187,12 +189,24 @@ export const useAudioManager = (
         const trebleSparkleFilter = audioContext.createBiquadFilter();
         trebleSparkleFilter.type = 'peaking';
         trebleSparkleFilter.frequency.value = 14000; // Air frequencies for sparkle
-        trebleSparkleFilter.Q.value = 1.0; // Balanced Q for natural sparkle
+        trebleSparkleFilter.Q.value = 0.8; // Softer Q for pure, noise-free treble (reduced from 1.0)
         trebleSparkleFilter.gain.value = 0;
+
+        // Stage 3: Treble smoothing filter - removes harsh frequencies and noise
+        // Gentle low-pass filter above 16kHz to remove digital artifacts and ensure pure treble
+        const trebleSmoothingFilter = audioContext.createBiquadFilter();
+        trebleSmoothingFilter.type = 'lowpass';
+        trebleSmoothingFilter.frequency.value = 18000; // Gentle rolloff above 18kHz
+        trebleSmoothingFilter.Q.value = 0.707; // Butterworth response for smooth rolloff
+        trebleSmoothingFilter.gain.value = 0; // No gain adjustment
 
         // Bass compensation gain - maintains consistent bass level to prevent ducking
         const bassCompensationGain = audioContext.createGain();
         bassCompensationGain.gain.value = 1.0; // Will be dynamically adjusted
+
+        // Preset normalization gain - ensures consistent volume across all presets
+        const presetNormalizationGain = audioContext.createGain();
+        presetNormalizationGain.gain.value = 1.0; // Will be dynamically adjusted based on preset
 
         // Bass-Friendly Compressor - prevents distortion while preserving bass punch
         // Slower attack allows bass transients to pass through, preventing ducking
@@ -218,22 +232,25 @@ export const useAudioManager = (
 
         // Connect professional audio chain with dual-stage tone controls:
         // source → high-pass → pre-gain → bass lowshelf → bass punch → treble highshelf → 
-        // treble sparkle → EQ → bass compensation → compressor → safety limiter → gain → destination
+        // treble sparkle → treble smoothing → EQ → bass compensation → preset normalization → 
+        // compressor → safety limiter → gain → destination
         source.connect(highPassFilter);
         highPassFilter.connect(preGain);
         preGain.connect(bassToneFilter);
         bassToneFilter.connect(bassPunchFilter);
         bassPunchFilter.connect(trebleToneFilter);
         trebleToneFilter.connect(trebleSparkleFilter);
+        trebleSparkleFilter.connect(trebleSmoothingFilter);
         
-        let currentNode: AudioNode = trebleSparkleFilter;
+        let currentNode: AudioNode = trebleSmoothingFilter;
         filters.forEach(filter => {
           currentNode.connect(filter);
           currentNode = filter;
         });
         
         currentNode.connect(bassCompensationGain);
-        bassCompensationGain.connect(compressor);
+        bassCompensationGain.connect(presetNormalizationGain);
+        presetNormalizationGain.connect(compressor);
         compressor.connect(safetyLimiter);
         safetyLimiter.connect(gainNode);
         gainNode.connect(audioContext.destination);
@@ -249,9 +266,11 @@ export const useAudioManager = (
           bassPunchFilter,
           trebleToneFilter,
           trebleSparkleFilter,
+          trebleSmoothingFilter,
           compressor,
           safetyLimiter,
           bassCompensationGain,
+          presetNormalizationGain,
           gainNode,
           connected: true,
         };
@@ -260,10 +279,126 @@ export const useAudioManager = (
         audioChainStorage.set(audio, chain);
 
         logger.info('Professional Web Audio API chain initialized successfully');
-        logger.debug(`Chain: High-pass → ${filters.length} EQ bands + Dual-Stage Bass/Treble + Bass Compensation + Compressor + Safety Limiter`);
+        logger.debug(`Chain: High-pass → ${filters.length} EQ bands + Dual-Stage Bass/Treble + Treble Smoothing + Bass Compensation + Preset Normalization + Compressor + Safety Limiter`);
         logger.debug(`Frequencies: ${EQUALIZER_BANDS.map(b => b.frequency + 'Hz').join(', ')}`);
-        logger.debug(`Bass: Lowshelf (65Hz) + Punch (55Hz peaking) | Treble: Highshelf (11kHz) + Sparkle (14kHz peaking)`);
+        logger.debug(`Bass: Lowshelf (70Hz, Q=0.6 - pure) + Punch (56Hz, Q=0.9 - powerful) | Treble: Highshelf (11kHz) + Sparkle (14kHz) + Smoothing (18kHz lowpass)`);
         logger.debug(`High-pass filter: 25Hz cutoff (removes subsonic frequencies)`);
+        
+        // Immediately apply EQ settings after chain initialization
+        // This ensures settings loaded from localStorage are applied at runtime
+        // Use setTimeout to ensure the chain is fully connected before applying settings
+        setTimeout(() => {
+          if (chain && chain.connected && chain.filters.length > 0) {
+            try {
+              const gains = [
+                equalizerSettings.band32,
+                equalizerSettings.band64,
+                equalizerSettings.band125,
+                equalizerSettings.band250,
+                equalizerSettings.band500,
+                equalizerSettings.band1k,
+                equalizerSettings.band2k,
+                equalizerSettings.band4k,
+                equalizerSettings.band8k,
+                equalizerSettings.band16k,
+              ];
+
+              const now = chain.context.currentTime;
+              
+              // Calculate bass boost for pre-gain and compensation
+              const bassBoost = equalizerSettings.enabled 
+                ? Math.max(0, 
+                    Math.max(equalizerSettings.band32, 0) +
+                    Math.max(equalizerSettings.band64, 0) +
+                    Math.max(equalizerSettings.band125, 0) +
+                    Math.max(equalizerSettings.bassTone, 0)
+                  )
+                : 0;
+
+              const totalPositiveGain = equalizerSettings.enabled
+                ? gains.reduce((sum, gain) => sum + Math.max(0, gain), 0) + 
+                  Math.max(0, equalizerSettings.bassTone) + 
+                  Math.max(0, equalizerSettings.trebleTone)
+                : 0;
+
+              // Apply pre-gain adjustment
+              let preGainValue = 0.7;
+              if (bassBoost > 0) {
+                const bassReduction = Math.min(0.3, (bassBoost / 24) * 0.3);
+                preGainValue -= bassReduction;
+              }
+              if (totalPositiveGain > 20) {
+                const gainReduction = Math.min(0.1, ((totalPositiveGain - 20) / 30) * 0.1);
+                preGainValue -= gainReduction;
+              }
+              preGainValue = Math.max(0.4, Math.min(0.85, preGainValue));
+              chain.preGain.gain.cancelScheduledValues(now);
+              chain.preGain.gain.setValueAtTime(preGainValue, now);
+              
+              // Apply all EQ settings immediately
+              gains.forEach((gain, index) => {
+                if (chain.filters[index]) {
+                  const targetGain = equalizerSettings.enabled ? gain : 0;
+                  chain.filters[index].gain.cancelScheduledValues(now);
+                  chain.filters[index].gain.setValueAtTime(targetGain, now);
+                }
+              });
+
+              // Apply bass tone
+              const targetBassTone = equalizerSettings.enabled ? equalizerSettings.bassTone : 0;
+              chain.bassToneFilter.gain.cancelScheduledValues(now);
+              chain.bassToneFilter.gain.setValueAtTime(targetBassTone, now);
+              
+              const bassPunchGain = targetBassTone * 0.5;
+              chain.bassPunchFilter.gain.cancelScheduledValues(now);
+              chain.bassPunchFilter.gain.setValueAtTime(bassPunchGain, now);
+
+              // Apply treble tone
+              const targetTrebleTone = equalizerSettings.enabled ? equalizerSettings.trebleTone : 0;
+              chain.trebleToneFilter.gain.cancelScheduledValues(now);
+              chain.trebleToneFilter.gain.setValueAtTime(targetTrebleTone, now);
+              
+              const trebleSparkleGain = targetTrebleTone * 0.3;
+              chain.trebleSparkleFilter.gain.cancelScheduledValues(now);
+              chain.trebleSparkleFilter.gain.setValueAtTime(trebleSparkleGain, now);
+
+              // Apply bass compensation
+              let bassCompensation = 1.0;
+              if (bassBoost > 0 && equalizerSettings.enabled) {
+                const compensationFactor = 1.0 + (bassBoost / 24) * 0.41;
+                bassCompensation = Math.min(1.41, compensationFactor);
+              }
+              if (targetBassTone > 0 && targetTrebleTone > 0 && equalizerSettings.enabled) {
+                const synergyBoost = Math.min(targetBassTone, targetTrebleTone) * 0.02;
+                bassCompensation = Math.min(1.5, bassCompensation + synergyBoost);
+              }
+              chain.bassCompensationGain.gain.cancelScheduledValues(now);
+              chain.bassCompensationGain.gain.setValueAtTime(bassCompensation, now);
+
+              // Apply preset normalization
+              let presetNormalization = 1.0;
+              if (equalizerSettings.enabled) {
+                const currentGain = totalPositiveGain;
+                const referenceGain = 20;
+                if (currentGain > referenceGain) {
+                  const reduction = Math.min(0.3, ((currentGain - referenceGain) / referenceGain) * 0.3);
+                  presetNormalization = 1.0 - reduction;
+                } else if (currentGain < referenceGain) {
+                  const boost = Math.min(0.15, ((referenceGain - currentGain) / referenceGain) * 0.15);
+                  presetNormalization = 1.0 + boost;
+                }
+                presetNormalization = Math.max(0.7, Math.min(1.15, presetNormalization));
+              }
+              chain.presetNormalizationGain.gain.cancelScheduledValues(now);
+              chain.presetNormalizationGain.gain.setValueAtTime(presetNormalization, now);
+
+              logger.info('EQ settings applied after chain initialization:', equalizerSettings.preset);
+              logger.debug(`Initialized with preset: ${equalizerSettings.preset}, Bass: ${targetBassTone}dB, Treble: ${targetTrebleTone}dB`);
+            } catch (error) {
+              logger.error('Failed to apply EQ settings after initialization:', error);
+            }
+          }
+        }, 50); // Small delay to ensure chain is fully connected
         
       } catch (error: unknown) {
         const err = error as Error;
@@ -283,12 +418,14 @@ export const useAudioManager = (
       audio.removeEventListener('play', initAudioChain);
       if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
     };
-  }, [volume]);
+  }, [volume, equalizerSettings]); // Add equalizerSettings dependency so settings are available when chain initializes
 
   // Update equalizer settings with dynamic pre-gain adjustment
+  // This effect runs whenever equalizerSettings changes OR when chain becomes available
   useEffect(() => {
     const chain = audioChainRef.current;
     if (!chain || !chain.connected || chain.filters.length === 0) {
+      // Chain not ready yet - settings will be applied when chain initializes
       return;
     }
 
@@ -371,9 +508,9 @@ export const useAudioManager = (
       chain.bassToneFilter.gain.setValueAtTime(chain.bassToneFilter.gain.value, now);
       chain.bassToneFilter.gain.linearRampToValueAtTime(targetBassTone, now + 0.05);
       
-      // Stage 2: Bass punch filter (60% of bass tone for powerful punch and presence)
-      // This adds punch at the fundamental frequency and ensures bass feels integrated, not below volume
-      const bassPunchGain = targetBassTone * 0.6; // 60% of main bass tone (increased for better presence)
+      // Stage 2: Bass punch filter (50% of bass tone for powerful punch with purity)
+      // Balanced gain for strong punch while maintaining clean, pure bass tone
+      const bassPunchGain = targetBassTone * 0.5; // 50% of main bass tone (balanced for punch and purity)
       chain.bassPunchFilter.gain.cancelScheduledValues(now);
       chain.bassPunchFilter.gain.setValueAtTime(chain.bassPunchFilter.gain.value, now);
       chain.bassPunchFilter.gain.linearRampToValueAtTime(bassPunchGain, now + 0.05);
@@ -386,9 +523,9 @@ export const useAudioManager = (
       chain.trebleToneFilter.gain.setValueAtTime(chain.trebleToneFilter.gain.value, now);
       chain.trebleToneFilter.gain.linearRampToValueAtTime(targetTrebleTone, now + 0.05);
       
-      // Stage 2: Treble sparkle filter (45% of treble tone for consistent air and presence)
-      // This adds sparkle at air frequencies and maintains presence throughout
-      const trebleSparkleGain = targetTrebleTone * 0.45; // 45% of main treble tone (increased for better integration)
+      // Stage 2: Treble sparkle filter (30% of treble tone for pure, noise-free treble)
+      // Reduced from 45% to minimize noise while maintaining presence
+      const trebleSparkleGain = targetTrebleTone * 0.3; // 30% of main treble tone (reduced for pure treble)
       chain.trebleSparkleFilter.gain.cancelScheduledValues(now);
       chain.trebleSparkleFilter.gain.setValueAtTime(chain.trebleSparkleFilter.gain.value, now);
       chain.trebleSparkleFilter.gain.linearRampToValueAtTime(trebleSparkleGain, now + 0.05);
@@ -418,9 +555,53 @@ export const useAudioManager = (
       chain.bassCompensationGain.gain.setValueAtTime(chain.bassCompensationGain.gain.value, now);
       chain.bassCompensationGain.gain.linearRampToValueAtTime(bassCompensation, now + 0.1);
 
+      // Preset Volume Normalization - ensures consistent loudness across all presets
+      // Calculate total gain for current preset and normalize to reference level
+      // This prevents volume jumps when switching presets
+      let presetNormalization = 1.0; // No normalization
+      
+      if (equalizerSettings.enabled) {
+        // Calculate RMS-like total gain (considers both positive and negative gains)
+        // Use perceptual loudness approximation (positive gains contribute more)
+        const totalPositiveGain = gains.reduce((sum, gain) => sum + Math.max(0, gain), 0) + 
+                                  Math.max(0, targetBassTone) + 
+                                  Math.max(0, targetTrebleTone);
+        const totalNegativeGain = Math.abs(gains.reduce((sum, gain) => sum + Math.min(0, gain), 0) + 
+                                          Math.min(0, targetBassTone) + 
+                                          Math.min(0, targetTrebleTone));
+        
+        // Reference level: target around 20dB total positive gain (balanced preset)
+        // Presets with more gain need reduction, presets with less gain need boost
+        const referenceGain = 20; // Target total positive gain
+        const currentGain = totalPositiveGain;
+        
+        // Calculate normalization factor (inverse relationship)
+        // If current gain is higher than reference, reduce volume
+        // If current gain is lower than reference, boost volume
+        if (currentGain > referenceGain) {
+          // Reduce volume for high-gain presets
+          // Scale: 20dB = 1.0, 40dB = ~0.7 (30% reduction)
+          const reduction = Math.min(0.3, ((currentGain - referenceGain) / referenceGain) * 0.3);
+          presetNormalization = 1.0 - reduction;
+        } else if (currentGain < referenceGain) {
+          // Boost volume for low-gain presets (but limit to prevent clipping)
+          // Scale: 20dB = 1.0, 10dB = ~1.15 (15% boost max)
+          const boost = Math.min(0.15, ((referenceGain - currentGain) / referenceGain) * 0.15);
+          presetNormalization = 1.0 + boost;
+        }
+        
+        // Clamp normalization between 0.7 (30% reduction) and 1.15 (15% boost)
+        presetNormalization = Math.max(0.7, Math.min(1.15, presetNormalization));
+      }
+      
+      // Apply preset normalization with smooth transition
+      chain.presetNormalizationGain.gain.cancelScheduledValues(now);
+      chain.presetNormalizationGain.gain.setValueAtTime(chain.presetNormalizationGain.gain.value, now);
+      chain.presetNormalizationGain.gain.linearRampToValueAtTime(presetNormalization, now + 0.15);
+
       logger.debug(`EQ updated: ${equalizerSettings.preset}, Bass: ${equalizerSettings.bassTone}dB, Treble: ${equalizerSettings.trebleTone}dB, enabled: ${equalizerSettings.enabled}`);
-      logger.debug(`Pre-gain: ${(preGainValue * 100).toFixed(1)}% | Bass compensation: +${((bassCompensation - 1.0) * 100).toFixed(1)}% (max +5dB)`);
-      logger.debug(`Bass punch: ${bassPunchGain.toFixed(1)}dB (60% of tone) | Treble sparkle: ${trebleSparkleGain.toFixed(1)}dB (45% of tone)`);
+      logger.debug(`Pre-gain: ${(preGainValue * 100).toFixed(1)}% | Bass compensation: +${((bassCompensation - 1.0) * 100).toFixed(1)}% | Preset normalization: ${(presetNormalization * 100).toFixed(1)}%`);
+      logger.debug(`Bass punch: ${bassPunchGain.toFixed(1)}dB (50% of tone - powerful) | Treble sparkle: ${trebleSparkleGain.toFixed(1)}dB (30% of tone - pure)`);
     } catch (error) {
       logger.error('Failed to update EQ:', error);
     }

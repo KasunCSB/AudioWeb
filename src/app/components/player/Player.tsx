@@ -21,7 +21,7 @@ import { LottieAnimation } from './LottieAnimation';
 import { LyricsDisplay } from './LyricsDisplay';
 import { PlayerStyles } from './PlayerStyles';
 import { getFileInputAcceptAttribute } from '@/utils/audioUtils';
-import { UI_CONFIG } from '@/config/constants';
+import { UI_CONFIG, STORAGE_KEYS } from '@/config/constants';
 
 const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = false, onPlayingChange, onTrackChange, onSleepTimerChange }) => {
   // State management
@@ -186,6 +186,26 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
     const newVolume = Number(e.target.value);
     setVolume(newVolume);
   }, []);
+
+  // Load volume from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.VOLUME);
+      if (stored !== null) {
+        const parsed = Number(stored);
+        if (!Number.isNaN(parsed)) {
+          setVolume(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Persist volume to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.VOLUME, String(volume));
+    } catch {}
+  }, [volume]);
 
   // Custom hooks
   const { audioRef, handlePlayPause, handleSeek } = useAudioManager(

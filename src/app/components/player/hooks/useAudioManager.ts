@@ -566,9 +566,7 @@ export const useAudioManager = (
         const totalPositiveGain = gains.reduce((sum, gain) => sum + Math.max(0, gain), 0) + 
                                   Math.max(0, targetBassTone) + 
                                   Math.max(0, targetTrebleTone);
-        const totalNegativeGain = Math.abs(gains.reduce((sum, gain) => sum + Math.min(0, gain), 0) + 
-                                          Math.min(0, targetBassTone) + 
-                                          Math.min(0, targetTrebleTone));
+        // Negative gains are not currently used in normalization; compute only if needed later
         
         // Reference level: target around 20dB total positive gain (balanced preset)
         // Presets with more gain need reduction, presets with less gain need boost

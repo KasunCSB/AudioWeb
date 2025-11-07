@@ -39,6 +39,7 @@ export const PlaylistPopup: React.FC<PlaylistPopupProps> = ({
   return (
     <ResizablePopup
       show={show}
+      className="playlist-popup"
       position={position}
       onClose={onClose}
       onMouseDown={onMouseDown}
@@ -49,7 +50,8 @@ export const PlaylistPopup: React.FC<PlaylistPopupProps> = ({
       maxWidth={650}
       maxHeight={750}
     >
-      <div className="space-y-2">
+      <div className="playlist-scroll-area h-full">
+        <div className="space-y-2">
         {playlist.map((track, index) => (
           <div
             key={track.id}
@@ -111,6 +113,7 @@ export const PlaylistPopup: React.FC<PlaylistPopupProps> = ({
             </div>
           </div>
         ))}
+        </div>
       </div>
     </ResizablePopup>
   );

@@ -3,7 +3,7 @@
   <h1>AudioWeb Music Player</h1>
 </div>
 
-![AudioWeb](https://img.shields.io/badge/AudioWeb-v6.0.0-blue)
+![AudioWeb](https://img.shields.io/badge/AudioWeb-v6.3.0-blue)
 ![Next.js](https://img.shields.io/badge/Next.js-16.0.1-black)
 ![React](https://img.shields.io/badge/React-19.0.0-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)

@@ -174,3 +174,112 @@ code, pre {
 .smooth-fade-in-anim {
   animation: smooth-fade-in 0.3s ease-out;
 }
+
+/* Playlist-specific theme-aware scrollbar (only visible inside the playlist popup) */
+:root {
+  --playlist-scroll-thumb: rgba(0, 0, 0, 0.20);
+  --playlist-scroll-track: rgba(0, 0, 0, 0.06);
+  --playlist-scroll-thumb-hover: rgba(0, 0, 0, 0.32);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --playlist-scroll-thumb: rgba(255, 255, 255, 0.12);
+    --playlist-scroll-track: rgba(255, 255, 255, 0.04);
+    --playlist-scroll-thumb-hover: rgba(255, 255, 255, 0.20);
+  }
+}
+
+/* Scoped to the playlist popup so other scrolling remains hidden as before */
+.playlist-popup .scroll-content {
+  /* Make scrollbar usable and thin */
+  overflow-y: auto; /* ensure scroll */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--playlist-scroll-thumb) var(--playlist-scroll-track); /* Firefox */
+}
+
+/* WebKit browsers */
+.playlist-popup .scroll-content::-webkit-scrollbar,
+.playlist-popup .playlist-scroll-area::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  display: block !important; /* override the global hide */
+}
+
+.playlist-popup .scroll-content::-webkit-scrollbar-track,
+.playlist-popup .playlist-scroll-area::-webkit-scrollbar-track {
+  background: var(--playlist-scroll-track);
+  border-radius: 8px;
+}
+
+.playlist-popup .scroll-content::-webkit-scrollbar-thumb,
+.playlist-popup .playlist-scroll-area::-webkit-scrollbar-thumb {
+  background: var(--playlist-scroll-thumb);
+  border-radius: 8px;
+  border: 2px solid transparent; /* give some spacing */
+  background-clip: padding-box;
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+
+.playlist-popup .scroll-content::-webkit-scrollbar-thumb:hover,
+.playlist-popup .playlist-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: var(--playlist-scroll-thumb-hover);
+  transform: scale(1.02);
+}
+
+/* Make sure the scrollbar is accessible when using keyboard focus inside the popup */
+.playlist-popup .scroll-content:focus {
+  outline: none;
+}
+
+/* Ensure the inner playlist scroll area is constrained to available height
+   and becomes the primary scroll target. This avoids relying only on the
+   popup's generic scroll-content when layout differences prevent overflow. */
+.playlist-popup .playlist-scroll-area {
+  height: 100%;
+  min-height: 0; /* allow children to shrink inside flex */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--playlist-scroll-thumb) var(--playlist-scroll-track);
+}
+
+.playlist-popup .playlist-scroll-area:focus {
+  outline: none;
+}
+
+/* Keep the scrollbar visually separated from the song items so it doesn't
+   overlap text/controls. Use padding-inline-end and fallback padding-right
+   with box-sizing to avoid introducing horizontal scroll. Also request the
+   browser to reserve gutter space when supported. */
+.playlist-popup .playlist-scroll-area {
+  box-sizing: border-box;
+  padding-inline-end: 12px; /* modern logical property */
+  padding-right: 12px; /* fallback */
+  scrollbar-gutter: stable both-edges;
+}
+
+/* Add a little inner padding to the list wrapper so items don't touch the
+   reserved area even if they use full width. */
+.playlist-popup .playlist-scroll-area > .space-y-2 {
+  padding-right: 6px;
+}
+
+/* Remove the resize-handle hover highlight for the playlist popup.
+   The ResizablePopup renders small absolute handles (right/bottom/bottom-right)
+   that show a hover background; hide that visual in the playlist popup while
+   keeping the resize functionality available elsewhere. */
+.playlist-popup .cursor-ew-resize,
+.playlist-popup .cursor-ns-resize,
+.playlist-popup .cursor-nw-resize {
+  background: transparent !important;
+}
+
+.playlist-popup .cursor-ew-resize:hover,
+.playlist-popup .cursor-ns-resize:hover,
+.playlist-popup .cursor-nw-resize:hover {
+  background: transparent !important;
+}
+
+

@@ -5,6 +5,7 @@ import { AudioTrack, PlayerProps } from './types';
 import { useAudioManager } from './hooks/useAudioManager';
 import { useDragHandler } from './hooks/useDragHandler';
 import { useFileHandler } from './hooks/useFileHandler';
+import ImportProgressPopup from './ImportProgressPopup';
 import { useSleepTimer } from './hooks/useSleepTimer';
 import { useMediaSession } from './hooks/useMediaSession';
 import { useEqualizerPersistence } from './hooks/useEqualizerPersistence';
@@ -276,7 +277,7 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
 
   const { popupPositions, handleMouseDown } = useDragHandler();
 
-  const { isDragOver, handleFileUpload, handleDragOver, handleDragLeave, handleDrop } = useFileHandler(
+  const { isDragOver, handleFileUpload, handleDragOver, handleDragLeave, handleDrop, uploadState } = useFileHandler(
     playlist,
     setPlaylist,
     setCurrentTrackIndex
@@ -612,6 +613,14 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
       </main>
 
       {/* Popups - Fixed positioning for mobile */}
+      <ImportProgressPopup
+        active={uploadState?.active ?? false}
+        total={uploadState?.total ?? 0}
+        processed={uploadState?.processed ?? 0}
+        currentFile={uploadState?.currentFile}
+        items={uploadState?.items ?? []}
+      />
+
       <PlaylistPopup
         show={showPlaylist}
         playlist={playlist}

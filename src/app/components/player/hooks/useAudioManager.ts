@@ -463,7 +463,7 @@ export const useAudioManager = (
         audioChainRef.current = chain;
         audioChainStorage.set(audio, chain);
 
-        logger.info('Professional studio-level Web Audio API chain initialized successfully');
+  logger.info('Web Audio API chain initialized successfully');
         logger.debug('Signal Flow: Source → Input Gain → High-Pass → 10-Band EQ → Analyser → Compressor → Exciter → Stereo Widener → Reverb → Limiter → Loudness → Output Gain → Destination');
         logger.debug(`EQ Bands: ${EQUALIZER_BANDS.map(b => b.label).join(', ')}`);
   logger.debug('Compressor: -24dB threshold, 4:1 ratio, 12ms attack, 250ms release');

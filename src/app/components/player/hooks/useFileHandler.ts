@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import React from 'react';
 import { AudioTrack, LyricLine } from '../types';
 import * as musicMetadata from 'music-metadata-browser';
 import { createLogger } from '@/utils/logger';
@@ -127,6 +128,13 @@ export const useFileHandler = (
   setCurrentTrackIndex: (index: number) => void
 ) => {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadState, setUploadState] = useState<{
+    active: boolean;
+    total: number;
+    processed: number;
+    currentFile?: string;
+    items: Array<{ name: string; status: 'pending' | 'done' | 'error'; error?: string }>;
+  }>({ active: false, total: 0, processed: 0, items: [] });
 
   // Extract metadata from audio file
   const extractMetadata = async (file: File): Promise<{
@@ -281,6 +289,8 @@ export const useFileHandler = (
   const handleFileUpload = useCallback(async (files: FileList) => {
     const startTime = performance.now();
     logger.start(`Processing ${files.length} files`);
+    // Initialize upload state for UI
+    setUploadState({ active: true, total: files.length, processed: 0, currentFile: '', items: [] });
     
     // Separate audio and lyrics files using utility functions
     const audioFiles = Array.from(files).filter(file => isAudioFile(file));
@@ -313,6 +323,8 @@ export const useFileHandler = (
     for (let i = 0; i < audioFiles.length; i += batchSize) {
       const batch = audioFiles.slice(i, i + batchSize);
       const batchPromises = batch.map(async (file, batchIndex) => {
+        // Update current file name for UI
+        setUploadState(prev => ({ ...prev, currentFile: file.name }));
         const globalIndex = i + batchIndex;
         
         try {
@@ -380,6 +392,13 @@ export const useFileHandler = (
         } catch (error) {
           logger.error(`Failed to process file ${file.name}:`, error);
           
+          // update upload state for error
+          setUploadState(prev => ({
+            ...prev,
+            processed: prev.processed + 1,
+            items: [...prev.items, { name: file.name, status: 'error', error: String(error) }]
+          }));
+
           // Create a minimal track with error
           return {
             id: `${Date.now()}-${globalIndex}-error`,
@@ -396,6 +415,12 @@ export const useFileHandler = (
       });
       
       const batchResults = await Promise.all(batchPromises);
+      // mark batch results processed in upload state
+      setUploadState(prev => ({
+        ...prev,
+        processed: prev.processed + batchResults.length,
+        items: [...prev.items, ...batchResults.map(r => ({ name: r.file?.name || r.title, status: (r.error ? 'error' : 'done') as 'error' | 'done', error: r.error }))]
+      }));
       newTracks.push(...batchResults);
     }
 
@@ -430,6 +455,8 @@ export const useFileHandler = (
     
     const duration = performance.now() - startTime;
     logger.complete(`File upload processing`, duration);
+    // finalize upload state
+    setUploadState(prev => ({ ...prev, active: false, currentFile: undefined }));
   }, [playlist.length, setPlaylist, setCurrentTrackIndex]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -484,6 +511,7 @@ export const useFileHandler = (
     handleFileUpload,
     handleDragOver,
     handleDragLeave,
-    handleDrop
+    handleDrop,
+    uploadState
   };
 };

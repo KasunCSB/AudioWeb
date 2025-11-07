@@ -265,6 +265,18 @@ export const useAudioManager = (
         const outputGain = audioContext.createGain();
         outputGain.gain.value = volume / 100;
 
+        // When a Web Audio graph is created the HTMLMediaElement's
+        // built-in volume property would still be applied in addition
+        // to our `outputGain`. If the user changed the slider before
+        // playback, `audio.volume` may already be reduced which would
+        // cause the final perceived volume to be multiplied twice
+        // (audio.volume * outputGain.gain). Reset the element volume
+        // to unity once the audio chain is ready so the chain alone
+        // controls the final output level.
+        try {
+          audio.volume = 1;
+        } catch {}
+
   // ===== PARALLEL LOW-BAND PUNCH PATH =====
   // Bandpass for low frequencies (32-64Hz focus)
   const lowBandFilter = audioContext.createBiquadFilter();

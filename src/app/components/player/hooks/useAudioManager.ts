@@ -300,7 +300,10 @@ export const useAudioManager = (
   parallelCompressor.knee.value = 10;       // smoother knee to reduce pumping
   parallelCompressor.ratio.value = 6;       // moderate-strong compression to avoid pumping
   parallelCompressor.attack.value = 0.001;   // faster attack (~1.0ms) for very sharp transient punch
-  parallelCompressor.release.value = 3.6;   // much longer release (~3600ms) for extended sustain
+  // Use a sensible in-range release for sustained low-band punch. WebAudio
+  // compressors expect values in seconds where the nominal range is [0, 1].
+  // Pick a value that gives sustain but avoids browser clamping warnings.
+  parallelCompressor.release.value = 1;   // 1000ms (max allowed) release for sustained low-band punch
 
   // Gain to mix compressed low band back into the chain
   const parallelGain = audioContext.createGain();
@@ -308,8 +311,8 @@ export const useAudioManager = (
 
   // Makeup gain to raise level of compressed low band before mixing
   const parallelMakeupGain = audioContext.createGain();
-  // Raise makeup gain to give more audible weight to the compressed low band (careful increase)
-  parallelMakeupGain.gain.value = 8.0; // stronger default boost; limited by downstream limiter and master
+  // Use a conservative default makeup gain to avoid overpowering the master.
+  parallelMakeupGain.gain.value = 2.0; // ~6dB boost by default
 
   // Soft saturation (waveshaper) on the parallel path to create harmonics and perceived loudness
   const parallelSaturator = audioContext.createWaveShaper();
@@ -355,11 +358,12 @@ export const useAudioManager = (
   subCompressor.knee.value = 6;
   subCompressor.ratio.value = 8;
   subCompressor.attack.value = 0.001; // faster attack to catch and shape sub transients
-  subCompressor.release.value = 4.8;  // much longer release for extended sustain (4.8s)
+  // Use a conservative in-range release for sub-bass sustain
+  subCompressor.release.value = 1;  // 1000ms (max allowed) release for sub-bass sustain
 
   // Makeup gain for sub-bass
   const subMakeupGain = audioContext.createGain();
-  subMakeupGain.gain.value = 8.0; // stronger default boost for heavier sub presence
+  subMakeupGain.gain.value = 2.0; // moderate default boost (~6dB)
 
   // Sub-bass saturator to create perceivable harmonics on headphones
   const subSaturator = audioContext.createWaveShaper();

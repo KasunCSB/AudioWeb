@@ -208,7 +208,14 @@ export function revokeObjectURL(url: string): void {
  * Clean up all tracked object URLs
  */
 export function revokeAllObjectURLs(): void {
-  logger.info(`Revoking ${objectURLs.size} object URLs`);
+  const count = objectURLs.size;
+  // Avoid noisy logs when there is nothing to revoke on startup
+  if (count === 0) {
+    logger.debug('No object URLs to revoke');
+    return;
+  }
+
+  logger.info(`Revoking ${count} object URLs`);
   objectURLs.forEach(url => URL.revokeObjectURL(url));
   objectURLs.clear();
 }

@@ -6,23 +6,54 @@ import { EQUALIZER_BANDS } from '@/config/constants';
 
 const logger = createLogger('AudioManager');
 
-// Simple Web Audio API chain storage
+// Professional Studio-Level Web Audio API Chain
+// Complete signal flow for audiophile-grade sound processing
 interface AudioChain {
   context: AudioContext;
   source: MediaElementAudioSourceNode;
-  highPassFilter: BiquadFilterNode;    // Removes subsonic frequencies to prevent noise
-  preGain: GainNode;                   // Input level control (dynamically adjusted)
-  filters: BiquadFilterNode[];
-  bassToneFilter: BiquadFilterNode;    // Professional bass lowshelf (deep, natural)
-  bassPunchFilter: BiquadFilterNode;   // Additional bass punch at fundamental frequency
-  trebleToneFilter: BiquadFilterNode;  // Professional treble highshelf (crystal clear)
-  trebleSparkleFilter: BiquadFilterNode; // Additional treble sparkle at air frequencies
-  trebleSmoothingFilter: BiquadFilterNode; // Low-pass filter to remove treble noise and harshness
-  compressor: DynamicsCompressorNode;  // Prevents distortion (bass-friendly settings)
-  safetyLimiter: DynamicsCompressorNode; // Hard limiter for extreme peaks
-  bassCompensationGain: GainNode;      // Dynamic gain compensation for bass consistency
-  presetNormalizationGain: GainNode;   // Normalizes preset volumes for consistent loudness
-  gainNode: GainNode;
+  
+  // Input Stage
+  inputGain: GainNode;                 // Preamp - input level control with headroom
+  highPassFilter: BiquadFilterNode;    // Rumble removal (subsonic frequencies)
+  
+  // Equalization Stage
+  filters: BiquadFilterNode[];         // 10-band parametric EQ
+  
+  // Analysis Stage
+  analyser: AnalyserNode;              // FFT analyzer for visualization
+  
+  // Dynamics Stage
+  compressor: DynamicsCompressorNode;  // Dynamic range compression
+  
+  // Enhancement Stage
+  exciter: BiquadFilterNode;           // Harmonic exciter/enhancer (high-freq boost)
+  bassPunchFilter: BiquadFilterNode;  // Dedicated bass punch peaking filter (~60Hz)
+  // Parallel low-band compressor for sustained punch
+  lowBandFilter: BiquadFilterNode;
+  parallelCompressor: DynamicsCompressorNode;
+  parallelGain: GainNode;
+  // Additional helpers for parallel low-band path
+  lowBandLowpass?: BiquadFilterNode;  // ensures no mid/high leakage into the parallel path
+  parallelMakeupGain?: GainNode;      // makeup gain after parallel compression
+  parallelSaturator?: WaveShaperNode; // subtle saturation on parallel low band
+  parallelLimiter?: DynamicsCompressorNode; // limiter for the parallel path
+  
+  // Spatial Stage
+  stereoWidener: GainNode;             // Stereo width control (placeholder for future stereo processing)
+  
+  // Ambience Stage
+  reverb: ConvolverNode | null;        // Convolution reverb (spatial depth) - optional
+  reverbDryGain: GainNode;             // Dry signal path
+  reverbWetGain: GainNode;             // Wet signal path (reverb)
+  reverbMix: GainNode;                 // Mix node combining dry and wet
+  
+  // Protection Stage
+  limiter: DynamicsCompressorNode;     // Brick-wall limiter (anti-clipping)
+  
+  // Output Stage
+  loudnessGain: GainNode;              // Loudness auto-adjust (normalization)
+  outputGain: GainNode;                // Post-amp - final output level control
+  
   connected: boolean;
 }
 
@@ -54,13 +85,13 @@ export const useAudioManager = (
 
     const targetVolume = volume / 100;
 
-    if (chain?.gainNode && chain.connected) {
+    if (chain?.outputGain && chain.connected) {
       try {
         isFadingRef.current = true;
         const now = chain.context.currentTime;
-        chain.gainNode.gain.cancelScheduledValues(now);
-        chain.gainNode.gain.setValueAtTime(0, now);
-        chain.gainNode.gain.linearRampToValueAtTime(targetVolume, now + duration / 1000);
+        chain.outputGain.gain.cancelScheduledValues(now);
+        chain.outputGain.gain.setValueAtTime(0, now);
+        chain.outputGain.gain.linearRampToValueAtTime(targetVolume, now + duration / 1000);
         
         if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
         fadeTimeoutRef.current = setTimeout(() => {
@@ -86,14 +117,14 @@ export const useAudioManager = (
         return;
       }
 
-      if (chain?.gainNode && chain.connected) {
+      if (chain?.outputGain && chain.connected) {
         try {
           isFadingRef.current = true;
           const now = chain.context.currentTime;
-          const currentVolume = chain.gainNode.gain.value;
-          chain.gainNode.gain.cancelScheduledValues(now);
-          chain.gainNode.gain.setValueAtTime(currentVolume, now);
-          chain.gainNode.gain.linearRampToValueAtTime(0, now + duration / 1000);
+          const currentVolume = chain.outputGain.gain.value;
+          chain.outputGain.gain.cancelScheduledValues(now);
+          chain.outputGain.gain.setValueAtTime(currentVolume, now);
+          chain.outputGain.gain.linearRampToValueAtTime(0, now + duration / 1000);
           
           if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
           fadeTimeoutRef.current = setTimeout(() => {
@@ -127,7 +158,7 @@ export const useAudioManager = (
     // Initialize on first user interaction
     const initAudioChain = () => {
       try {
-        logger.start('Initializing professional Web Audio API chain');
+        logger.start('Initializing professional studio-level Web Audio API chain');
 
         // Create AudioContext
         const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -135,158 +166,244 @@ export const useAudioManager = (
         // Create MediaElementSource (can only be done once per element)
         const source = audioContext.createMediaElementSource(audio);
         
-        // High-pass filter to remove subsonic frequencies (<20Hz) that cause noise/distortion
-        // This is critical for preventing issues when bass is boosted
+        // ===== INPUT STAGE =====
+        // Input Gain (Preamp) - provides headroom for signal processing
+        const inputGain = audioContext.createGain();
+        inputGain.gain.value = 0.75; // 25% reduction for headroom
+        
+        // High-Pass Filter - removes rumble and subsonic frequencies (<20Hz)
         const highPassFilter = audioContext.createBiquadFilter();
         highPassFilter.type = 'highpass';
-        highPassFilter.frequency.value = 25; // Remove frequencies below 25Hz (subsonic)
-        highPassFilter.Q.value = 0.707; // Butterworth-like response
-        highPassFilter.gain.value = 0; // No gain adjustment
+        highPassFilter.frequency.value = 20; // Subsonic rumble removal
+        highPassFilter.Q.value = 0.707; // Butterworth response
         
-        // Pre-gain to prevent overload (reduces input to give headroom for EQ boosts)
-        // Will be dynamically adjusted based on bass boost amount
-        const preGain = audioContext.createGain();
-        preGain.gain.value = 0.7; // Start with 30% reduction (more conservative than before)
-        
-        // Create 10-band EQ with BiquadFilters (musical Q values for smooth sound)
+        // ===== EQUALIZATION STAGE =====
+        // 10-Band Parametric EQ - surgical frequency control
         const filters: BiquadFilterNode[] = [];
         EQUALIZER_BANDS.forEach((band, index) => {
           const filter = audioContext.createBiquadFilter();
           filter.type = index === 0 ? 'lowshelf' : index === EQUALIZER_BANDS.length - 1 ? 'highshelf' : 'peaking';
           filter.frequency.value = band.frequency;
-          // Musical Q values: lower = smoother, less resonance/noise
-          filter.Q.value = index === 0 || index === EQUALIZER_BANDS.length - 1 ? 0.7 : 1.0;
+          filter.Q.value = band.q; // Studio Q values from constants
           filter.gain.value = 0;
           filters.push(filter);
         });
-
-        // Professional Dual-Stage Bass Enhancement
-        // Stage 1: Pure bass lowshelf for clean, natural bass foundation
-        const bassToneFilter = audioContext.createBiquadFilter();
-        bassToneFilter.type = 'lowshelf';
-        bassToneFilter.frequency.value = 70; // Slightly higher for cleaner, more pure bass (was 65Hz)
-        bassToneFilter.Q.value = 0.6; // Softer Q for pure, clean bass without muddiness (was 0.707)
-        bassToneFilter.gain.value = 0;
-
-        // Stage 2: Bass punch filter for powerful impact with purity
-        // Optimized Q and frequency for strong punch while maintaining clean bass
-        const bassPunchFilter = audioContext.createBiquadFilter();
-        bassPunchFilter.type = 'peaking';
-        bassPunchFilter.frequency.value = 56; // Optimal frequency for punch (balanced between 55-58Hz)
-        bassPunchFilter.Q.value = 0.9; // Balanced Q for powerful punch with clean response (was 0.8)
-        bassPunchFilter.gain.value = 0;
-
-        // Professional Dual-Stage Treble Enhancement
-        // Stage 1: Highshelf for overall treble presence and air
-        const trebleToneFilter = audioContext.createBiquadFilter();
-        trebleToneFilter.type = 'highshelf';
-        trebleToneFilter.frequency.value = 11000; // Higher frequency for crystal clear air
-        trebleToneFilter.Q.value = 0.707; // Butterworth response - smooth and natural
-        trebleToneFilter.gain.value = 0;
-
-        // Stage 2: Treble sparkle filter at air frequencies (14-16kHz) for consistency
-        // This adds sparkle and maintains presence throughout the track
-        const trebleSparkleFilter = audioContext.createBiquadFilter();
-        trebleSparkleFilter.type = 'peaking';
-        trebleSparkleFilter.frequency.value = 14000; // Air frequencies for sparkle
-        trebleSparkleFilter.Q.value = 0.8; // Softer Q for pure, noise-free treble (reduced from 1.0)
-        trebleSparkleFilter.gain.value = 0;
-
-        // Stage 3: Treble smoothing filter - removes harsh frequencies and noise
-        // Gentle low-pass filter above 16kHz to remove digital artifacts and ensure pure treble
-        const trebleSmoothingFilter = audioContext.createBiquadFilter();
-        trebleSmoothingFilter.type = 'lowpass';
-        trebleSmoothingFilter.frequency.value = 18000; // Gentle rolloff above 18kHz
-        trebleSmoothingFilter.Q.value = 0.707; // Butterworth response for smooth rolloff
-        trebleSmoothingFilter.gain.value = 0; // No gain adjustment
-
-        // Bass compensation gain - maintains consistent bass level to prevent ducking
-        const bassCompensationGain = audioContext.createGain();
-        bassCompensationGain.gain.value = 1.0; // Will be dynamically adjusted
-
-        // Preset normalization gain - ensures consistent volume across all presets
-        const presetNormalizationGain = audioContext.createGain();
-        presetNormalizationGain.gain.value = 1.0; // Will be dynamically adjusted based on preset
-
-        // Bass-Friendly Compressor - prevents distortion while preserving bass punch
-        // Slower attack allows bass transients to pass through, preventing ducking
-        const compressor = audioContext.createDynamicsCompressor();
-        compressor.threshold.value = -6;   // Slightly higher threshold - less aggressive
-        compressor.knee.value = 15;        // Softer knee for gentler compression
-        compressor.ratio.value = 3.5;      // Lower ratio for more natural dynamics
-        compressor.attack.value = 0.01;    // Slower attack (10ms) - lets bass transients through!
-        compressor.release.value = 0.2;    // Longer release (200ms) - smoother, less pumping
-
-        // Safety Limiter - hard limiter for extreme peaks (catches what compressor misses)
-        // This is critical for preventing clipping when bass is heavily boosted
-        const safetyLimiter = audioContext.createDynamicsCompressor();
-        safetyLimiter.threshold.value = -3;  // Catch peaks before clipping
-        safetyLimiter.knee.value = 0;        // Hard knee for hard limiting
-        safetyLimiter.ratio.value = 20;      // Very high ratio = hard limiter
-        safetyLimiter.attack.value = 0.001;  // Ultra-fast attack (1ms) to catch all peaks
-        safetyLimiter.release.value = 0.05;  // Very fast release (50ms)
-
-        // Create gain node for volume
-        const gainNode = audioContext.createGain();
-        gainNode.gain.value = volume / 100;
-
-        // Connect professional audio chain with dual-stage tone controls:
-        // source → high-pass → pre-gain → bass lowshelf → bass punch → treble highshelf → 
-        // treble sparkle → treble smoothing → EQ → bass compensation → preset normalization → 
-        // compressor → safety limiter → gain → destination
-        source.connect(highPassFilter);
-        highPassFilter.connect(preGain);
-        preGain.connect(bassToneFilter);
-        bassToneFilter.connect(bassPunchFilter);
-        bassPunchFilter.connect(trebleToneFilter);
-        trebleToneFilter.connect(trebleSparkleFilter);
-        trebleSparkleFilter.connect(trebleSmoothingFilter);
         
-        let currentNode: AudioNode = trebleSmoothingFilter;
+        // ===== ANALYSIS STAGE =====
+        // Analyser - FFT analysis for visualization (future use)
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.8;
+        
+        // ===== DYNAMICS STAGE =====
+        // Compressor - transparent dynamic range control
+  const compressor = audioContext.createDynamicsCompressor();
+  compressor.threshold.value = -24;    // Studio threshold
+  compressor.knee.value = 30;          // Soft knee
+  compressor.ratio.value = 4;          // Moderate ratio
+  compressor.attack.value = 0.012;     // 12ms attack - lets bass transients pass for punch
+  compressor.release.value = 0.25;     // 250ms release
+        
+        // ===== ENHANCEMENT STAGE =====
+        // Exciter/Enhancer - adds harmonic richness and presence
+        const exciter = audioContext.createBiquadFilter();
+        exciter.type = 'highshelf';
+        exciter.frequency.value = 8000;      // Enhance presence/air frequencies
+        exciter.Q.value = 0.707;
+        exciter.gain.value = 0;              // Disabled by default
+
+  // Dedicated Bass Punch filter (peaking around 56-65Hz)
+  const bassPunchFilter = audioContext.createBiquadFilter();
+  bassPunchFilter.type = 'peaking';
+  // Move the peaking center lower for deeper punch, slightly narrower Q for weight
+  // Tune peaking to favor both deep sub and transient thump
+  bassPunchFilter.frequency.value = 50; // Punch center moved slightly up to catch transient energy
+  bassPunchFilter.Q.value = 1.2;        // focused but not too narrow
+  bassPunchFilter.gain.value = 0;       // Controlled by bassTone
+        
+        // ===== SPATIAL STAGE =====
+        // Stereo Widener - stereo field control (placeholder for future expansion)
+        const stereoWidener = audioContext.createGain();
+        stereoWidener.gain.value = 1.0;      // Unity gain (no widening by default)
+        
+        // ===== AMBIENCE STAGE =====
+        // Reverb - convolution reverb for spatial depth (optional)
+        const reverb: ConvolverNode | null = null; // Can be enabled later with impulse response
+        const reverbDryGain = audioContext.createGain();
+        const reverbWetGain = audioContext.createGain();
+        const reverbMix = audioContext.createGain();
+        
+        reverbDryGain.gain.value = 1.0;      // 100% dry signal
+        reverbWetGain.gain.value = 0.0;      // 0% wet signal (reverb disabled)
+        reverbMix.gain.value = 1.0;
+        
+        // ===== PROTECTION STAGE =====
+        // Limiter - brick-wall limiter for anti-clipping protection
+        const limiter = audioContext.createDynamicsCompressor();
+        limiter.threshold.value = -1;        // Prevent clipping at -1dB
+        limiter.knee.value = 0;              // Hard knee (brick-wall)
+        limiter.ratio.value = 20;            // Hard limiting
+        limiter.attack.value = 0.001;        // 1ms attack (instant)
+        limiter.release.value = 0.1;         // 100ms release
+        
+        // ===== OUTPUT STAGE =====
+        // Loudness Auto Adjust - intelligent loudness normalization
+        const loudnessGain = audioContext.createGain();
+        loudnessGain.gain.value = 1.0;       // Unity gain (no adjustment by default)
+        
+        // Output Gain (Post-amp) - final master volume control
+        const outputGain = audioContext.createGain();
+        outputGain.gain.value = volume / 100;
+
+  // ===== PARALLEL LOW-BAND PUNCH PATH =====
+  // Bandpass for low frequencies (32-64Hz focus)
+  const lowBandFilter = audioContext.createBiquadFilter();
+  lowBandFilter.type = 'bandpass';
+  // Focus the parallel band more on the deep sub-bass region for sustained body
+  lowBandFilter.frequency.value = 40; // center around 40Hz (covers ~32-64Hz)
+  // A slightly wider Q gives more audible energy while still isolating mids
+  lowBandFilter.Q.value = 1.6;        // balance isolation and energy
+
+  // Additional lowpass to remove any higher-frequency leakage into the parallel path
+  const lowBandLowpass = audioContext.createBiquadFilter();
+  lowBandLowpass.type = 'lowpass';
+  // Tighter lowpass to keep the parallel path strictly under ~80Hz so mids/vocals aren't affected
+  lowBandLowpass.frequency.value = 80; // tighter cutoff to protect mids
+  lowBandLowpass.Q.value = 0.707;
+
+  // Parallel compressor to create sustained low-end punch
+  const parallelCompressor = audioContext.createDynamicsCompressor();
+  // Stronger, longer-release parallel compression to create a deep, sustained low-band punch
+  parallelCompressor.threshold.value = -18; // engage earlier on low peaks
+  parallelCompressor.knee.value = 10;       // smoother knee to reduce pumping
+  parallelCompressor.ratio.value = 6;       // moderate-strong compression to avoid pumping
+  parallelCompressor.attack.value = 0.005;  // faster attack (~5ms) for more punch while keeping some transient
+  parallelCompressor.release.value = 0.7;   // longer release (~700ms) for sustained body
+
+  // Gain to mix compressed low band back into the chain
+  const parallelGain = audioContext.createGain();
+  parallelGain.gain.value = 0; // off by default; driven by bassTone
+
+  // Makeup gain to raise level of compressed low band before mixing
+  const parallelMakeupGain = audioContext.createGain();
+  // Raise makeup gain to give more audible weight to the compressed low band
+  parallelMakeupGain.gain.value = 1.8; // default boost, still limited by downstream limiter and master
+
+  // Soft saturation (waveshaper) on the parallel path to create harmonics and perceived loudness
+  const parallelSaturator = audioContext.createWaveShaper();
+  // create a gentle tanh curve
+  const makeTanhCurve = (amount = 400) => {
+    const samples = 4096;
+    const curve = new Float32Array(samples);
+    for (let i = 0; i < samples; ++i) {
+      const x = (i * 2) / (samples - 1) - 1;
+      curve[i] = Math.tanh(x * amount);
+    }
+    return curve;
+  };
+  // Increase saturation for stronger perceived vibration on headphones and small drivers
+  parallelSaturator.curve = makeTanhCurve(12); // stronger yet still musical
+  parallelSaturator.oversample = '4x';
+
+  // Limiter on the parallel path to prevent extreme peaks from lifting master dynamics
+  const parallelLimiter = audioContext.createDynamicsCompressor();
+  parallelLimiter.threshold.value = -3; // gentle ceiling for parallel path
+  parallelLimiter.knee.value = 0;
+  parallelLimiter.ratio.value = 20;
+  parallelLimiter.attack.value = 0.002;
+  parallelLimiter.release.value = 0.1;
+        
+        // ===== CONNECT THE COMPLETE SIGNAL CHAIN =====
+        // AudioSource → Input Gain → High-Pass Filter → 10-Band EQ → Analyser →
+        // Compressor → Exciter → Stereo Widener → Reverb (Dry/Wet Mix) →
+        // Limiter → Loudness Adjust → Output Gain → Destination
+        
+        source.connect(inputGain);
+        inputGain.connect(highPassFilter);
+        
+        // Connect EQ chain
+        let currentNode: AudioNode = highPassFilter;
         filters.forEach(filter => {
           currentNode.connect(filter);
           currentNode = filter;
         });
         
-        currentNode.connect(bassCompensationGain);
-        bassCompensationGain.connect(presetNormalizationGain);
-        presetNormalizationGain.connect(compressor);
-        compressor.connect(safetyLimiter);
-        safetyLimiter.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+  // Continue signal flow
+  currentNode.connect(analyser);
+  analyser.connect(bassPunchFilter);
+  bassPunchFilter.connect(compressor);
+  compressor.connect(exciter);
+        exciter.connect(stereoWidener);
+        
+  // Reverb routing (dry/wet mix)
+  stereoWidener.connect(reverbDryGain);
+  // Also feed parallel low-band punch path from stereoWidener
+  stereoWidener.connect(lowBandFilter);
+  // Ensure low-band path is tightly isolated (bandpass -> lowpass) before compression
+  lowBandFilter.connect(lowBandLowpass);
+  lowBandLowpass.connect(parallelCompressor);
+  parallelCompressor.connect(parallelMakeupGain);
+  // Saturate and limit the compressed low band to increase perceived loudness without affecting mids
+  parallelMakeupGain.connect(parallelSaturator);
+  parallelSaturator.connect(parallelLimiter);
+  // Feed limiter output to the blend gain (no feedback loop)
+  parallelLimiter.connect(parallelGain);
+  parallelGain.connect(reverbMix); // add compressed low band before limiter
+        // Reverb is currently disabled (null) - can be enabled later with impulse response
+        // if (reverb) {
+        //   stereoWidener.connect(reverb);
+        //   reverb.connect(reverbWetGain);
+        // }
+        reverbDryGain.connect(reverbMix);
+        reverbWetGain.connect(reverbMix);
+        
+        // Final output chain
+        reverbMix.connect(limiter);
+        limiter.connect(loudnessGain);
+        loudnessGain.connect(outputGain);
+        outputGain.connect(audioContext.destination);
 
         // Store chain
         const chain: AudioChain = {
           context: audioContext,
           source,
+          inputGain,
           highPassFilter,
-          preGain,
           filters,
-          bassToneFilter,
-          bassPunchFilter,
-          trebleToneFilter,
-          trebleSparkleFilter,
-          trebleSmoothingFilter,
+          analyser,
           compressor,
-          safetyLimiter,
-          bassCompensationGain,
-          presetNormalizationGain,
-          gainNode,
+          exciter,
+          bassPunchFilter,
+          lowBandFilter,
+          lowBandLowpass,
+          parallelCompressor,
+          parallelMakeupGain,
+          parallelSaturator,
+          parallelLimiter,
+          parallelGain,
+          stereoWidener,
+          reverb,
+          reverbDryGain,
+          reverbWetGain,
+          reverbMix,
+          limiter,
+          loudnessGain,
+          outputGain,
           connected: true,
         };
 
         audioChainRef.current = chain;
         audioChainStorage.set(audio, chain);
 
-        logger.info('Professional Web Audio API chain initialized successfully');
-        logger.debug(`Chain: High-pass → ${filters.length} EQ bands + Dual-Stage Bass/Treble + Treble Smoothing + Bass Compensation + Preset Normalization + Compressor + Safety Limiter`);
-        logger.debug(`Frequencies: ${EQUALIZER_BANDS.map(b => b.frequency + 'Hz').join(', ')}`);
-        logger.debug(`Bass: Lowshelf (70Hz, Q=0.6 - pure) + Punch (56Hz, Q=0.9 - powerful) | Treble: Highshelf (11kHz) + Sparkle (14kHz) + Smoothing (18kHz lowpass)`);
-        logger.debug(`High-pass filter: 25Hz cutoff (removes subsonic frequencies)`);
+        logger.info('Professional studio-level Web Audio API chain initialized successfully');
+        logger.debug('Signal Flow: Source → Input Gain → High-Pass → 10-Band EQ → Analyser → Compressor → Exciter → Stereo Widener → Reverb → Limiter → Loudness → Output Gain → Destination');
+        logger.debug(`EQ Bands: ${EQUALIZER_BANDS.map(b => b.label).join(', ')}`);
+  logger.debug('Compressor: -24dB threshold, 4:1 ratio, 12ms attack, 250ms release');
+        logger.debug('Limiter: -1dB threshold, 20:1 ratio, 1ms attack, 100ms release');
+        logger.debug('All nodes created and connected successfully');
+        logger.debug(`Input Gain: ${(inputGain.gain.value * 100).toFixed(0)}%, High-Pass: ${highPassFilter.frequency.value}Hz, Output: ${(outputGain.gain.value * 100).toFixed(0)}%`);
         
         // Immediately apply EQ settings after chain initialization
-        // This ensures settings loaded from localStorage are applied at runtime
-        // Use setTimeout to ensure the chain is fully connected before applying settings
         setTimeout(() => {
           if (chain && chain.connected && chain.filters.length > 0) {
             try {
@@ -305,37 +422,22 @@ export const useAudioManager = (
 
               const now = chain.context.currentTime;
               
-              // Calculate bass boost for pre-gain and compensation
-              const bassBoost = equalizerSettings.enabled 
-                ? Math.max(0, 
-                    Math.max(equalizerSettings.band32, 0) +
-                    Math.max(equalizerSettings.band64, 0) +
-                    Math.max(equalizerSettings.band125, 0) +
-                    Math.max(equalizerSettings.bassTone, 0)
-                  )
-                : 0;
-
+              // Calculate total positive gain for dynamic adjustments
               const totalPositiveGain = equalizerSettings.enabled
-                ? gains.reduce((sum, gain) => sum + Math.max(0, gain), 0) + 
-                  Math.max(0, equalizerSettings.bassTone) + 
-                  Math.max(0, equalizerSettings.trebleTone)
+                ? gains.reduce((sum, gain) => sum + Math.max(0, gain), 0)
                 : 0;
 
-              // Apply pre-gain adjustment
-              let preGainValue = 0.7;
-              if (bassBoost > 0) {
-                const bassReduction = Math.min(0.3, (bassBoost / 24) * 0.3);
-                preGainValue -= bassReduction;
+              // Dynamic input gain adjustment based on total EQ boost
+              let inputGainValue = 0.75; // Base 25% reduction
+              if (totalPositiveGain > 15) {
+                const reduction = Math.min(0.2, ((totalPositiveGain - 15) / 30) * 0.2);
+                inputGainValue -= reduction;
               }
-              if (totalPositiveGain > 20) {
-                const gainReduction = Math.min(0.1, ((totalPositiveGain - 20) / 30) * 0.1);
-                preGainValue -= gainReduction;
-              }
-              preGainValue = Math.max(0.4, Math.min(0.85, preGainValue));
-              chain.preGain.gain.cancelScheduledValues(now);
-              chain.preGain.gain.setValueAtTime(preGainValue, now);
+              inputGainValue = Math.max(0.5, Math.min(0.85, inputGainValue));
+              chain.inputGain.gain.cancelScheduledValues(now);
+              chain.inputGain.gain.setValueAtTime(inputGainValue, now);
               
-              // Apply all EQ settings immediately
+              // Apply 10-band EQ settings
               gains.forEach((gain, index) => {
                 if (chain.filters[index]) {
                   const targetGain = equalizerSettings.enabled ? gain : 0;
@@ -344,61 +446,66 @@ export const useAudioManager = (
                 }
               });
 
-              // Apply bass tone
+              // Apply exciter (presence enhancement)
+              // Use bassTone and trebleTone to drive exciter intensity
+              const exciterGain = equalizerSettings.enabled && equalizerSettings.trebleTone > 0
+                ? Math.min(3, equalizerSettings.trebleTone * 0.25) // Max +3dB exciter
+                : 0;
+              chain.exciter.gain.cancelScheduledValues(now);
+              chain.exciter.gain.setValueAtTime(exciterGain, now);
+
+              // Apply bass punch based on bassTone and low-band energy
               const targetBassTone = equalizerSettings.enabled ? equalizerSettings.bassTone : 0;
-              chain.bassToneFilter.gain.cancelScheduledValues(now);
-              chain.bassToneFilter.gain.setValueAtTime(targetBassTone, now);
-              
-              const bassPunchGain = targetBassTone * 0.5;
-              chain.bassPunchFilter.gain.cancelScheduledValues(now);
-              chain.bassPunchFilter.gain.setValueAtTime(bassPunchGain, now);
+              // Compute low band energy from 32Hz and 64Hz bands if available
+              const band32 = equalizerSettings.band32 || 0;
+              const band64 = equalizerSettings.band64 || 0;
+              const lowEnergy = Math.max(0, band32 + band64 + targetBassTone);
 
-              // Apply treble tone
-              const targetTrebleTone = equalizerSettings.enabled ? equalizerSettings.trebleTone : 0;
-              chain.trebleToneFilter.gain.cancelScheduledValues(now);
-              chain.trebleToneFilter.gain.setValueAtTime(targetTrebleTone, now);
-              
-              const trebleSparkleGain = targetTrebleTone * 0.3;
-              chain.trebleSparkleFilter.gain.cancelScheduledValues(now);
-              chain.trebleSparkleFilter.gain.setValueAtTime(trebleSparkleGain, now);
-
-              // Apply bass compensation
-              let bassCompensation = 1.0;
-              if (bassBoost > 0 && equalizerSettings.enabled) {
-                const compensationFactor = 1.0 + (bassBoost / 24) * 0.41;
-                bassCompensation = Math.min(1.41, compensationFactor);
+              // Bass punch peaking filter gain (surgical punch)
+              // Increase scale and headroom slightly for a deeper, more audible punch
+              // Increase transient peaking scale to emphasize the attack/thump
+              const bassPunchGain = Math.max(0, Math.min(18, lowEnergy * 1.0)); // scale and clamp to 18dB max
+              if (chain.bassPunchFilter) {
+                chain.bassPunchFilter.gain.cancelScheduledValues(now);
+                chain.bassPunchFilter.gain.setValueAtTime(chain.bassPunchFilter.gain.value, now);
+                // Faster ramp for immediate impact
+                chain.bassPunchFilter.gain.linearRampToValueAtTime(bassPunchGain, now + 0.02);
               }
-              if (targetBassTone > 0 && targetTrebleTone > 0 && equalizerSettings.enabled) {
-                const synergyBoost = Math.min(targetBassTone, targetTrebleTone) * 0.02;
-                bassCompensation = Math.min(1.5, bassCompensation + synergyBoost);
-              }
-              chain.bassCompensationGain.gain.cancelScheduledValues(now);
-              chain.bassCompensationGain.gain.setValueAtTime(bassCompensation, now);
 
-              // Apply preset normalization
-              let presetNormalization = 1.0;
+              // Parallel compressed low band mix - provides long, sustained punch
+              // Conservative scaling and clamp to avoid raising mids and triggering global loudness
+              const parallelMix = Math.max(0, Math.min(1.0, (lowEnergy / 24) * 0.9)); // normalized mix 0..1.0
+              if (chain.parallelGain) {
+                chain.parallelGain.gain.cancelScheduledValues(now);
+                chain.parallelGain.gain.setValueAtTime(chain.parallelGain.gain.value, now);
+                chain.parallelGain.gain.linearRampToValueAtTime(parallelMix, now + 0.08);
+              }
+
+              // Apply loudness normalization based on preset
+              let loudnessValue = 1.0;
               if (equalizerSettings.enabled) {
-                const currentGain = totalPositiveGain;
-                const referenceGain = 20;
-                if (currentGain > referenceGain) {
-                  const reduction = Math.min(0.3, ((currentGain - referenceGain) / referenceGain) * 0.3);
-                  presetNormalization = 1.0 - reduction;
-                } else if (currentGain < referenceGain) {
-                  const boost = Math.min(0.15, ((referenceGain - currentGain) / referenceGain) * 0.15);
-                  presetNormalization = 1.0 + boost;
+                const referenceGain = 15;
+                if (totalPositiveGain > referenceGain) {
+                  const reduction = Math.min(0.25, ((totalPositiveGain - referenceGain) / referenceGain) * 0.25);
+                  loudnessValue = 1.0 - reduction;
+                } else if (totalPositiveGain < referenceGain && totalPositiveGain > 0) {
+                  const boost = Math.min(0.15, ((referenceGain - totalPositiveGain) / referenceGain) * 0.15);
+                  loudnessValue = 1.0 + boost;
                 }
-                presetNormalization = Math.max(0.7, Math.min(1.15, presetNormalization));
+                loudnessValue = Math.max(0.75, Math.min(1.15, loudnessValue));
               }
-              chain.presetNormalizationGain.gain.cancelScheduledValues(now);
-              chain.presetNormalizationGain.gain.setValueAtTime(presetNormalization, now);
+              chain.loudnessGain.gain.cancelScheduledValues(now);
+              chain.loudnessGain.gain.setValueAtTime(loudnessValue, now);
 
               logger.info('EQ settings applied after chain initialization:', equalizerSettings.preset);
-              logger.debug(`Initialized with preset: ${equalizerSettings.preset}, Bass: ${targetBassTone}dB, Treble: ${targetTrebleTone}dB`);
+              logger.debug(`Input Gain: ${(inputGainValue * 100).toFixed(1)}%, Exciter: ${exciterGain.toFixed(1)}dB, Loudness: ${(loudnessValue * 100).toFixed(1)}%`);
+              logger.debug(`EQ Bands: ${gains.map((g, i) => `${EQUALIZER_BANDS[i].label}:${g.toFixed(1)}dB`).join(', ')}`);
+              logger.debug(`Bass Tone: ${equalizerSettings.bassTone}dB, Treble Tone: ${equalizerSettings.trebleTone}dB, Total Gain: ${totalPositiveGain.toFixed(1)}dB`);
             } catch (error) {
               logger.error('Failed to apply EQ settings after initialization:', error);
             }
           }
-        }, 50); // Small delay to ensure chain is fully connected
+        }, 50);
         
       } catch (error: unknown) {
         const err = error as Error;
@@ -420,12 +527,11 @@ export const useAudioManager = (
     };
   }, [volume, equalizerSettings]); // Add equalizerSettings dependency so settings are available when chain initializes
 
-  // Update equalizer settings with dynamic pre-gain adjustment
-  // This effect runs whenever equalizerSettings changes OR when chain becomes available
+  // Update equalizer settings dynamically
+  // This effect runs whenever equalizerSettings changes
   useEffect(() => {
     const chain = audioChainRef.current;
     if (!chain || !chain.connected || chain.filters.length === 0) {
-      // Chain not ready yet - settings will be applied when chain initializes
       return;
     }
 
@@ -445,52 +551,24 @@ export const useAudioManager = (
 
       const now = chain.context.currentTime;
       
-      // Calculate total bass boost (32Hz + 64Hz + 125Hz + bassTone)
-      // This helps us determine how much pre-gain reduction we need
-      const bassBoost = equalizerSettings.enabled 
-        ? Math.max(0, 
-            Math.max(equalizerSettings.band32, 0) +
-            Math.max(equalizerSettings.band64, 0) +
-            Math.max(equalizerSettings.band125, 0) +
-            Math.max(equalizerSettings.bassTone, 0)
-          )
-        : 0;
-
-      // Calculate total positive gain across all bands (for overall headroom)
+      // Calculate total positive gain for dynamic processing
       const totalPositiveGain = equalizerSettings.enabled
-        ? gains.reduce((sum, gain) => sum + Math.max(0, gain), 0) + 
-          Math.max(0, equalizerSettings.bassTone) + 
-          Math.max(0, equalizerSettings.trebleTone)
+        ? gains.reduce((sum, gain) => sum + Math.max(0, gain), 0)
         : 0;
 
-      // Dynamic pre-gain reduction based on bass boost and total gain
-      // More aggressive bass boost = more pre-gain reduction to prevent clipping
-      // Formula: base 0.7 (30% reduction) - additional reduction for bass boost
-      // Maximum reduction: 0.4 (60% reduction) when bass is heavily boosted
-      let preGainValue = 0.7; // Base reduction
-      
-      if (bassBoost > 0) {
-        // Additional reduction for bass boost: up to 30% more reduction for extreme bass
-        // Linear scaling: 0dB bass = 0% extra, 24dB bass = 30% extra reduction
-        const bassReduction = Math.min(0.3, (bassBoost / 24) * 0.3);
-        preGainValue -= bassReduction;
+      // Dynamic input gain adjustment (headroom management)
+      let inputGainValue = 0.75; // Base 25% reduction
+      if (totalPositiveGain > 15) {
+        const reduction = Math.min(0.2, ((totalPositiveGain - 15) / 30) * 0.2);
+        inputGainValue -= reduction;
       }
+      inputGainValue = Math.max(0.5, Math.min(0.85, inputGainValue));
       
-      // Additional reduction for high total gain (when many bands are boosted)
-      if (totalPositiveGain > 20) {
-        const gainReduction = Math.min(0.1, ((totalPositiveGain - 20) / 30) * 0.1);
-        preGainValue -= gainReduction;
-      }
+      chain.inputGain.gain.cancelScheduledValues(now);
+      chain.inputGain.gain.setValueAtTime(chain.inputGain.gain.value, now);
+      chain.inputGain.gain.linearRampToValueAtTime(inputGainValue, now + 0.1);
       
-      // Clamp pre-gain between 0.4 (60% reduction) and 0.85 (15% reduction)
-      preGainValue = Math.max(0.4, Math.min(0.85, preGainValue));
-      
-      // Update pre-gain with smooth transition
-      chain.preGain.gain.cancelScheduledValues(now);
-      chain.preGain.gain.setValueAtTime(chain.preGain.gain.value, now);
-      chain.preGain.gain.linearRampToValueAtTime(preGainValue, now + 0.1);
-      
-      // Update 10-band EQ
+      // Update 10-band EQ with smooth transitions
       gains.forEach((gain, index) => {
         if (chain.filters[index]) {
           const targetGain = equalizerSettings.enabled ? gain : 0;
@@ -500,106 +578,43 @@ export const useAudioManager = (
         }
       });
 
-      // Update Dual-Stage Bass Enhancement
+      // Update exciter based on trebleTone
+      const exciterGain = equalizerSettings.enabled && equalizerSettings.trebleTone > 0
+        ? Math.min(3, equalizerSettings.trebleTone * 0.25) // Max +3dB
+        : 0;
+      chain.exciter.gain.cancelScheduledValues(now);
+      chain.exciter.gain.setValueAtTime(chain.exciter.gain.value, now);
+      chain.exciter.gain.linearRampToValueAtTime(exciterGain, now + 0.05);
+
+      // Update bass punch filter based on bassTone
       const targetBassTone = equalizerSettings.enabled ? equalizerSettings.bassTone : 0;
-      
-      // Stage 1: Main bass lowshelf (full value)
-      chain.bassToneFilter.gain.cancelScheduledValues(now);
-      chain.bassToneFilter.gain.setValueAtTime(chain.bassToneFilter.gain.value, now);
-      chain.bassToneFilter.gain.linearRampToValueAtTime(targetBassTone, now + 0.05);
-      
-      // Stage 2: Bass punch filter (50% of bass tone for powerful punch with purity)
-      // Balanced gain for strong punch while maintaining clean, pure bass tone
-      const bassPunchGain = targetBassTone * 0.5; // 50% of main bass tone (balanced for punch and purity)
-      chain.bassPunchFilter.gain.cancelScheduledValues(now);
-      chain.bassPunchFilter.gain.setValueAtTime(chain.bassPunchFilter.gain.value, now);
-      chain.bassPunchFilter.gain.linearRampToValueAtTime(bassPunchGain, now + 0.05);
-
-      // Update Dual-Stage Treble Enhancement
-      const targetTrebleTone = equalizerSettings.enabled ? equalizerSettings.trebleTone : 0;
-      
-      // Stage 1: Main treble highshelf (full value)
-      chain.trebleToneFilter.gain.cancelScheduledValues(now);
-      chain.trebleToneFilter.gain.setValueAtTime(chain.trebleToneFilter.gain.value, now);
-      chain.trebleToneFilter.gain.linearRampToValueAtTime(targetTrebleTone, now + 0.05);
-      
-      // Stage 2: Treble sparkle filter (30% of treble tone for pure, noise-free treble)
-      // Reduced from 45% to minimize noise while maintaining presence
-      const trebleSparkleGain = targetTrebleTone * 0.3; // 30% of main treble tone (reduced for pure treble)
-      chain.trebleSparkleFilter.gain.cancelScheduledValues(now);
-      chain.trebleSparkleFilter.gain.setValueAtTime(chain.trebleSparkleFilter.gain.value, now);
-      chain.trebleSparkleFilter.gain.linearRampToValueAtTime(trebleSparkleGain, now + 0.05);
-
-      // Dynamic Bass Compensation - ensures bass feels integrated with volume, not below it
-      // When bass is boosted, add compensation to maintain perceived level and punch
-      // Formula: More bass boost = more compensation (up to +5dB max for better integration)
-      let bassCompensation = 1.0; // No compensation
-      
-      if (bassBoost > 0 && equalizerSettings.enabled) {
-        // Scale compensation: 0dB bass = 1.0, 24dB bass = 1.41 (5dB boost max)
-        // This ensures bass feels integrated with volume, not reduced or "below" it
-        const compensationFactor = 1.0 + (bassBoost / 24) * 0.41; // Max +5dB (increased from +3dB)
-        bassCompensation = Math.min(1.41, compensationFactor);
+      const targetBassPunch = Math.max(0, Math.min(12, targetBassTone * 0.6)); // scale and clamp
+      if (chain.bassPunchFilter) {
+        chain.bassPunchFilter.gain.cancelScheduledValues(now);
+        chain.bassPunchFilter.gain.setValueAtTime(chain.bassPunchFilter.gain.value, now);
+        chain.bassPunchFilter.gain.linearRampToValueAtTime(targetBassPunch, now + 0.07);
       }
-      
-      // Additional bass/treble synergy compensation
-      // When both bass and treble are boosted, add slight overall compensation
-      // This ensures they work hand-in-hand for best audio output
-      if (targetBassTone > 0 && targetTrebleTone > 0 && equalizerSettings.enabled) {
-        const synergyBoost = Math.min(targetBassTone, targetTrebleTone) * 0.02; // Up to +0.24dB
-        bassCompensation = Math.min(1.5, bassCompensation + synergyBoost);
-      }
-      
-      // Apply bass compensation with smooth transition
-      chain.bassCompensationGain.gain.cancelScheduledValues(now);
-      chain.bassCompensationGain.gain.setValueAtTime(chain.bassCompensationGain.gain.value, now);
-      chain.bassCompensationGain.gain.linearRampToValueAtTime(bassCompensation, now + 0.1);
 
-      // Preset Volume Normalization - ensures consistent loudness across all presets
-      // Calculate total gain for current preset and normalize to reference level
-      // This prevents volume jumps when switching presets
-      let presetNormalization = 1.0; // No normalization
-      
+      // Update loudness normalization
+      let loudnessValue = 1.0;
       if (equalizerSettings.enabled) {
-        // Calculate RMS-like total gain (considers both positive and negative gains)
-        // Use perceptual loudness approximation (positive gains contribute more)
-        const totalPositiveGain = gains.reduce((sum, gain) => sum + Math.max(0, gain), 0) + 
-                                  Math.max(0, targetBassTone) + 
-                                  Math.max(0, targetTrebleTone);
-        // Negative gains are not currently used in normalization; compute only if needed later
-        
-        // Reference level: target around 20dB total positive gain (balanced preset)
-        // Presets with more gain need reduction, presets with less gain need boost
-        const referenceGain = 20; // Target total positive gain
-        const currentGain = totalPositiveGain;
-        
-        // Calculate normalization factor (inverse relationship)
-        // If current gain is higher than reference, reduce volume
-        // If current gain is lower than reference, boost volume
-        if (currentGain > referenceGain) {
-          // Reduce volume for high-gain presets
-          // Scale: 20dB = 1.0, 40dB = ~0.7 (30% reduction)
-          const reduction = Math.min(0.3, ((currentGain - referenceGain) / referenceGain) * 0.3);
-          presetNormalization = 1.0 - reduction;
-        } else if (currentGain < referenceGain) {
-          // Boost volume for low-gain presets (but limit to prevent clipping)
-          // Scale: 20dB = 1.0, 10dB = ~1.15 (15% boost max)
-          const boost = Math.min(0.15, ((referenceGain - currentGain) / referenceGain) * 0.15);
-          presetNormalization = 1.0 + boost;
+        const referenceGain = 15;
+        if (totalPositiveGain > referenceGain) {
+          const reduction = Math.min(0.25, ((totalPositiveGain - referenceGain) / referenceGain) * 0.25);
+          loudnessValue = 1.0 - reduction;
+        } else if (totalPositiveGain < referenceGain && totalPositiveGain > 0) {
+          const boost = Math.min(0.15, ((referenceGain - totalPositiveGain) / referenceGain) * 0.15);
+          loudnessValue = 1.0 + boost;
         }
-        
-        // Clamp normalization between 0.7 (30% reduction) and 1.15 (15% boost)
-        presetNormalization = Math.max(0.7, Math.min(1.15, presetNormalization));
+        loudnessValue = Math.max(0.75, Math.min(1.15, loudnessValue));
       }
-      
-      // Apply preset normalization with smooth transition
-      chain.presetNormalizationGain.gain.cancelScheduledValues(now);
-      chain.presetNormalizationGain.gain.setValueAtTime(chain.presetNormalizationGain.gain.value, now);
-      chain.presetNormalizationGain.gain.linearRampToValueAtTime(presetNormalization, now + 0.15);
+      chain.loudnessGain.gain.cancelScheduledValues(now);
+      chain.loudnessGain.gain.setValueAtTime(chain.loudnessGain.gain.value, now);
+      chain.loudnessGain.gain.linearRampToValueAtTime(loudnessValue, now + 0.15);
 
-      logger.debug(`EQ updated: ${equalizerSettings.preset}, Bass: ${equalizerSettings.bassTone}dB, Treble: ${equalizerSettings.trebleTone}dB, enabled: ${equalizerSettings.enabled}`);
-      logger.debug(`Pre-gain: ${(preGainValue * 100).toFixed(1)}% | Bass compensation: +${((bassCompensation - 1.0) * 100).toFixed(1)}% | Preset normalization: ${(presetNormalization * 100).toFixed(1)}%`);
-      logger.debug(`Bass punch: ${bassPunchGain.toFixed(1)}dB (50% of tone - powerful) | Treble sparkle: ${trebleSparkleGain.toFixed(1)}dB (30% of tone - pure)`);
+      logger.debug(`EQ updated: ${equalizerSettings.preset}, enabled: ${equalizerSettings.enabled}`);
+      logger.debug(`Input: ${(inputGainValue * 100).toFixed(1)}%, Exciter: ${exciterGain.toFixed(1)}dB, Loudness: ${(loudnessValue * 100).toFixed(1)}%`);
+      logger.debug(`Bass/Treble Tone: ${equalizerSettings.bassTone}/${equalizerSettings.trebleTone}dB, Total Positive Gain: ${totalPositiveGain.toFixed(1)}dB`);
     } catch (error) {
       logger.error('Failed to update EQ:', error);
     }
@@ -688,12 +703,12 @@ export const useAudioManager = (
 
     const targetVolume = volume / 100;
 
-    if (chain?.gainNode && chain.connected && !isFadingRef.current) {
+    if (chain?.outputGain && chain.connected && !isFadingRef.current) {
       try {
         const now = chain.context.currentTime;
-        chain.gainNode.gain.cancelScheduledValues(now);
-        chain.gainNode.gain.setValueAtTime(chain.gainNode.gain.value, now);
-        chain.gainNode.gain.linearRampToValueAtTime(targetVolume, now + 0.1);
+        chain.outputGain.gain.cancelScheduledValues(now);
+        chain.outputGain.gain.setValueAtTime(chain.outputGain.gain.value, now);
+        chain.outputGain.gain.linearRampToValueAtTime(targetVolume, now + 0.1);
       } catch {
         audio.volume = targetVolume;
       }
@@ -765,7 +780,10 @@ export const useAudioManager = (
   }, [setCurrentTime]);
 
   const getAnalyser = useCallback(() => {
-    // Could add analyzer node here in future
+    const chain = audioChainRef.current;
+    if (chain?.analyser && chain.connected) {
+      return chain.analyser;
+    }
     return null;
   }, []);
 

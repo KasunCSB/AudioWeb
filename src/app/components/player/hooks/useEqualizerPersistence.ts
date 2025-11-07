@@ -19,15 +19,20 @@ const defaultSettings: EqualizerSettings = {
   bassTone: 0,
   trebleTone: 0,
   preset: 'flat',
-  enabled: true,
+  enabled: false,
 };
 
-export const useEqualizerPersistence = () => {
+export const useEqualizerPersistence = (shouldInit: boolean = false) => {
   const [settings, setSettings] = useState<EqualizerSettings>(defaultSettings);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load settings from localStorage on mount
+  // Initialize (load or save defaults) only when the player UI is ready
+  // `shouldInit` should be true when the player has become visible and at
+  // least one track is available. This avoids early localStorage access on
+  // fresh starts or before UI is ready.
   useEffect(() => {
+    if (!shouldInit || isLoaded) return;
+
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.EQUALIZER_SETTINGS);
       if (stored) {
@@ -35,19 +40,26 @@ export const useEqualizerPersistence = () => {
         setSettings(parsed);
         logger.info('Equalizer settings loaded from localStorage:', parsed.preset);
       } else {
-        logger.debug('No stored equalizer settings found, using defaults');
+        // Fresh user: persist the defaults now that UI is ready
+        setSettings(defaultSettings);
+        try {
+          localStorage.setItem(STORAGE_KEYS.EQUALIZER_SETTINGS, JSON.stringify(defaultSettings));
+          logger.debug('No stored equalizer settings found; saved defaults to localStorage');
+        } catch (err) {
+          logger.error('Failed to save default equalizer settings:', err);
+        }
       }
     } catch (error) {
-      logger.error('Failed to load equalizer settings:', error);
+      logger.error('Failed to initialize equalizer settings from localStorage:', error);
       setSettings(defaultSettings);
     } finally {
       setIsLoaded(true);
     }
-  }, []);
+  }, [shouldInit, isLoaded]);
 
-  // Save settings to localStorage whenever they change
+  // Save settings to localStorage whenever they change — but only after init
   useEffect(() => {
-    if (!isLoaded) return; // Don't save on initial load
+    if (!isLoaded) return; // Don't save before initialization
 
     try {
       localStorage.setItem(STORAGE_KEYS.EQUALIZER_SETTINGS, JSON.stringify(settings));

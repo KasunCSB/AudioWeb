@@ -44,7 +44,8 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
   const { 
     settings: equalizerSettings, 
     updateSettings: setEqualizerSettings,
-  } = useEqualizerPersistence();
+    isLoaded: isEqualizerLoaded,
+  } = useEqualizerPersistence(isVisible && playlist.length > 0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentTrack = playlist[currentTrackIndex];
@@ -250,7 +251,8 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
     volume,
     repeatMode,
     handleNext,
-    equalizerSettings
+    equalizerSettings,
+    isEqualizerLoaded
   );
 
   // If the playlist becomes empty while playback is active, ensure audio actually stops

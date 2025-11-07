@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioTrack, EqualizerSettings } from '../types';
 import { createLogger } from '@/utils/logger';
 import { getAudioErrorMessage } from '@/utils/audioUtils';
@@ -77,10 +77,12 @@ export const useAudioManager = (
   volume: number,
   repeatMode: number,
   handleNext: () => void,
-  equalizerSettings: EqualizerSettings
+  equalizerSettings: EqualizerSettings,
+  isEqualizerLoaded: boolean
 ) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioChainRef = useRef<AudioChain | null>(null);
+  const [isChainReady, setIsChainReady] = useState(false);
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFadingRef = useRef<boolean>(false);
 
@@ -163,8 +165,8 @@ export const useAudioManager = (
       return;
     }
 
-    // Initialize on first user interaction
-    const initAudioChain = () => {
+  // Initialize on first user interaction
+  const initAudioChain = () => {
       try {
         logger.start('Initializing professional studio-level Web Audio API chain');
 
@@ -460,8 +462,9 @@ export const useAudioManager = (
           connected: true,
         };
 
-        audioChainRef.current = chain;
-        audioChainStorage.set(audio, chain);
+  audioChainRef.current = chain;
+  audioChainStorage.set(audio, chain);
+  setIsChainReady(true);
 
   logger.info('Web Audio API chain initialized successfully');
         logger.debug('Signal Flow: Source → Input Gain → High-Pass → 10-Band EQ → Analyser → Compressor → Exciter → Stereo Widener → Reverb → Limiter → Loudness → Output Gain → Destination');
@@ -471,138 +474,12 @@ export const useAudioManager = (
         logger.debug('All nodes created and connected successfully');
         logger.debug(`Input Gain: ${(inputGain.gain.value * 100).toFixed(0)}%, High-Pass: ${highPassFilter.frequency.value}Hz, Output: ${(outputGain.gain.value * 100).toFixed(0)}%`);
         
-        // Immediately apply EQ settings after chain initialization
-        setTimeout(() => {
-          if (chain && chain.connected && chain.filters.length > 0) {
-            try {
-              const gains = [
-                equalizerSettings.band32,
-                equalizerSettings.band64,
-                equalizerSettings.band125,
-                equalizerSettings.band250,
-                equalizerSettings.band500,
-                equalizerSettings.band1k,
-                equalizerSettings.band2k,
-                equalizerSettings.band4k,
-                equalizerSettings.band8k,
-                equalizerSettings.band16k,
-              ];
-
-              const now = chain.context.currentTime;
-              
-              // Calculate total positive gain for dynamic adjustments
-              const totalPositiveGain = equalizerSettings.enabled
-                ? gains.reduce((sum, gain) => sum + Math.max(0, gain), 0)
-                : 0;
-
-              // Dynamic input gain adjustment based on total EQ boost
-              let inputGainValue = 0.75; // Base 25% reduction
-              if (totalPositiveGain > 15) {
-                const reduction = Math.min(0.2, ((totalPositiveGain - 15) / 30) * 0.2);
-                inputGainValue -= reduction;
-              }
-              inputGainValue = Math.max(0.5, Math.min(0.85, inputGainValue));
-              chain.inputGain.gain.cancelScheduledValues(now);
-              chain.inputGain.gain.setValueAtTime(inputGainValue, now);
-              
-              // Apply 10-band EQ settings
-              gains.forEach((gain, index) => {
-                if (chain.filters[index]) {
-                  const targetGain = equalizerSettings.enabled ? gain : 0;
-                  chain.filters[index].gain.cancelScheduledValues(now);
-                  chain.filters[index].gain.setValueAtTime(targetGain, now);
-                }
-              });
-
-              // Apply exciter (presence enhancement)
-              // Use bassTone and trebleTone to drive exciter intensity
-              const exciterGain = equalizerSettings.enabled && equalizerSettings.trebleTone > 0
-                ? Math.min(3, equalizerSettings.trebleTone * 0.25) // Max +3dB exciter
-                : 0;
-              chain.exciter.gain.cancelScheduledValues(now);
-              chain.exciter.gain.setValueAtTime(exciterGain, now);
-
-              // Apply bass punch based on bassTone and low-band energy
-              const targetBassTone = equalizerSettings.enabled ? equalizerSettings.bassTone : 0;
-              // Compute low band energy from 32Hz and 64Hz bands if available
-              const band32 = equalizerSettings.band32 || 0;
-              const band64 = equalizerSettings.band64 || 0;
-              const lowEnergy = Math.max(0, band32 + band64 + targetBassTone);
-
-              // Bass punch peaking filter gain (surgical punch)
-              // Increase scale and headroom slightly for a deeper, more audible punch
-              // Increase transient peaking scale to emphasize the attack/thump
-              // Use a slightly compressive mapping so high lowEnergy doesn't explode gain; keep control while increasing impact
-              const bassPunchGain = Math.max(0, Math.min(28, Math.pow(Math.max(0, lowEnergy), 0.9) * 1.4)); // compressive scaling, higher clamp for more thump
-              if (chain.bassPunchFilter) {
-                chain.bassPunchFilter.gain.cancelScheduledValues(now);
-                chain.bassPunchFilter.gain.setValueAtTime(chain.bassPunchFilter.gain.value, now);
-                // Faster ramp for immediate impact
-                chain.bassPunchFilter.gain.linearRampToValueAtTime(bassPunchGain, now + 0.015);
-              }
-
-              // Parallel compressed low band mix - provides long, sustained punch
-              // Slightly more responsive scaling to make the effect more audible while clamped to 1.0
-              const parallelMix = Math.max(0, Math.min(1.0, (lowEnergy / 20) * 1.0)); // normalized mix 0..1.0
-              if (chain.parallelGain) {
-                chain.parallelGain.gain.cancelScheduledValues(now);
-                chain.parallelGain.gain.setValueAtTime(chain.parallelGain.gain.value, now);
-                chain.parallelGain.gain.linearRampToValueAtTime(parallelMix, now + 0.12);
-              }
-
-              // Ramp makeup gain proportionally but conservatively so the compressed band increases perceived loudness
-              // Allow a larger makeup headroom for stronger sustain, but clamp to avoid runaway levels
-              const makeupTarget = Math.max(1.0, Math.min(8.0, 1.0 + parallelMix * 3.0));
-              if (chain.parallelMakeupGain) {
-                chain.parallelMakeupGain.gain.cancelScheduledValues(now);
-                chain.parallelMakeupGain.gain.setValueAtTime(chain.parallelMakeupGain.gain.value, now);
-                chain.parallelMakeupGain.gain.linearRampToValueAtTime(makeupTarget, now + 0.18);
-              }
-
-              // --- Sub-bass parallel path dynamic control ---
-              // Focus on 32Hz band and bassTone to drive very-low-frequency sustain
-              const subBand32 = band32; // primary contributor for sub-bass
-              const subLowEnergy = Math.max(0, subBand32 + (targetBassTone * 0.8));
-              // Mix for sub-bass path (0..1.0)
-              const subMix = Math.max(0, Math.min(1.0, (subLowEnergy / 20) * 1.0));
-              if (chain.subGain) {
-                chain.subGain.gain.cancelScheduledValues(now);
-                chain.subGain.gain.setValueAtTime(chain.subGain.gain.value, now);
-                chain.subGain.gain.linearRampToValueAtTime(subMix, now + 0.12);
-              }
-              // Makeup gain for sub-bass: more headroom for long sustain, clamped
-              const subMakeupTarget = Math.max(1.0, Math.min(12.0, 1.0 + subMix * 5.0));
-              if (chain.subMakeupGain) {
-                chain.subMakeupGain.gain.cancelScheduledValues(now);
-                chain.subMakeupGain.gain.setValueAtTime(chain.subMakeupGain.gain.value, now);
-                chain.subMakeupGain.gain.linearRampToValueAtTime(subMakeupTarget, now + 0.15);
-              }
-
-              // Apply loudness normalization based on preset
-              let loudnessValue = 1.0;
-              if (equalizerSettings.enabled) {
-                const referenceGain = 15;
-                if (totalPositiveGain > referenceGain) {
-                  const reduction = Math.min(0.25, ((totalPositiveGain - referenceGain) / referenceGain) * 0.25);
-                  loudnessValue = 1.0 - reduction;
-                } else if (totalPositiveGain < referenceGain && totalPositiveGain > 0) {
-                  const boost = Math.min(0.15, ((referenceGain - totalPositiveGain) / referenceGain) * 0.15);
-                  loudnessValue = 1.0 + boost;
-                }
-                loudnessValue = Math.max(0.75, Math.min(1.15, loudnessValue));
-              }
-              chain.loudnessGain.gain.cancelScheduledValues(now);
-              chain.loudnessGain.gain.setValueAtTime(loudnessValue, now);
-
-              logger.info('EQ settings applied after chain initialization:', equalizerSettings.preset);
-              logger.debug(`Input Gain: ${(inputGainValue * 100).toFixed(1)}%, Exciter: ${exciterGain.toFixed(1)}dB, Loudness: ${(loudnessValue * 100).toFixed(1)}%`);
-              logger.debug(`EQ Bands: ${gains.map((g, i) => `${EQUALIZER_BANDS[i].label}:${g.toFixed(1)}dB`).join(', ')}`);
-              logger.debug(`Bass Tone: ${equalizerSettings.bassTone}dB, Treble Tone: ${equalizerSettings.trebleTone}dB, Total Gain: ${totalPositiveGain.toFixed(1)}dB`);
-            } catch (error) {
-              logger.error('Failed to apply EQ settings after initialization:', error);
-            }
-          }
-        }, 50);
+        // Initial EQ application removed here to avoid duplicate application.
+        // The dedicated effect that listens to `equalizerSettings` (below)
+        // will apply EQ once the audio chain exists and whenever settings
+        // change. Keeping the initial application here caused the same
+        // values to be set twice (once on init, once via the settings
+        // effect) leading to duplicate logs and potential clamping warnings.
         
       } catch (error: unknown) {
         const err = error as Error;
@@ -622,34 +499,31 @@ export const useAudioManager = (
       audio.removeEventListener('play', initAudioChain);
       if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
     };
-  }, [volume, equalizerSettings]); // Add equalizerSettings dependency so settings are available when chain initializes
+  }, [volume]);
 
   // Update equalizer settings dynamically
-  // This effect runs whenever equalizerSettings changes
-  useEffect(() => {
-    const chain = audioChainRef.current;
-    if (!chain || !chain.connected || chain.filters.length === 0) {
-      return;
-    }
+  // Helper to apply equalizer settings to an initialized chain
+  const applyEqualizerSettingsToChain = (chain: AudioChain, settings: EqualizerSettings) => {
+    if (!chain || !chain.connected || chain.filters.length === 0) return;
 
     try {
       const gains = [
-        equalizerSettings.band32,
-        equalizerSettings.band64,
-        equalizerSettings.band125,
-        equalizerSettings.band250,
-        equalizerSettings.band500,
-        equalizerSettings.band1k,
-        equalizerSettings.band2k,
-        equalizerSettings.band4k,
-        equalizerSettings.band8k,
-        equalizerSettings.band16k,
+        settings.band32,
+        settings.band64,
+        settings.band125,
+        settings.band250,
+        settings.band500,
+        settings.band1k,
+        settings.band2k,
+        settings.band4k,
+        settings.band8k,
+        settings.band16k,
       ];
 
       const now = chain.context.currentTime;
-      
+
       // Calculate total positive gain for dynamic processing
-      const totalPositiveGain = equalizerSettings.enabled
+      const totalPositiveGain = settings.enabled
         ? gains.reduce((sum, gain) => sum + Math.max(0, gain), 0)
         : 0;
 
@@ -660,15 +534,15 @@ export const useAudioManager = (
         inputGainValue -= reduction;
       }
       inputGainValue = Math.max(0.5, Math.min(0.85, inputGainValue));
-      
+
       chain.inputGain.gain.cancelScheduledValues(now);
       chain.inputGain.gain.setValueAtTime(chain.inputGain.gain.value, now);
       chain.inputGain.gain.linearRampToValueAtTime(inputGainValue, now + 0.1);
-      
+
       // Update 10-band EQ with smooth transitions
       gains.forEach((gain, index) => {
         if (chain.filters[index]) {
-          const targetGain = equalizerSettings.enabled ? gain : 0;
+          const targetGain = settings.enabled ? gain : 0;
           chain.filters[index].gain.cancelScheduledValues(now);
           chain.filters[index].gain.setValueAtTime(chain.filters[index].gain.value, now);
           chain.filters[index].gain.linearRampToValueAtTime(targetGain, now + 0.05);
@@ -676,15 +550,15 @@ export const useAudioManager = (
       });
 
       // Update exciter based on trebleTone
-      const exciterGain = equalizerSettings.enabled && equalizerSettings.trebleTone > 0
-        ? Math.min(3, equalizerSettings.trebleTone * 0.25) // Max +3dB
+      const exciterGain = settings.enabled && settings.trebleTone > 0
+        ? Math.min(3, settings.trebleTone * 0.25) // Max +3dB
         : 0;
       chain.exciter.gain.cancelScheduledValues(now);
       chain.exciter.gain.setValueAtTime(chain.exciter.gain.value, now);
       chain.exciter.gain.linearRampToValueAtTime(exciterGain, now + 0.05);
 
       // Update bass punch filter based on bassTone
-      const targetBassTone = equalizerSettings.enabled ? equalizerSettings.bassTone : 0;
+      const targetBassTone = settings.enabled ? settings.bassTone : 0;
       const targetBassPunch = Math.max(0, Math.min(12, targetBassTone * 0.6)); // scale and clamp
       if (chain.bassPunchFilter) {
         chain.bassPunchFilter.gain.cancelScheduledValues(now);
@@ -694,7 +568,7 @@ export const useAudioManager = (
 
       // Update loudness normalization
       let loudnessValue = 1.0;
-      if (equalizerSettings.enabled) {
+      if (settings.enabled) {
         const referenceGain = 15;
         if (totalPositiveGain > referenceGain) {
           const reduction = Math.min(0.25, ((totalPositiveGain - referenceGain) / referenceGain) * 0.25);
@@ -709,13 +583,21 @@ export const useAudioManager = (
       chain.loudnessGain.gain.setValueAtTime(chain.loudnessGain.gain.value, now);
       chain.loudnessGain.gain.linearRampToValueAtTime(loudnessValue, now + 0.15);
 
-      logger.debug(`EQ updated: ${equalizerSettings.preset}, enabled: ${equalizerSettings.enabled}`);
+      logger.debug(`EQ updated: ${settings.preset}, enabled: ${settings.enabled}`);
       logger.debug(`Input: ${(inputGainValue * 100).toFixed(1)}%, Exciter: ${exciterGain.toFixed(1)}dB, Loudness: ${(loudnessValue * 100).toFixed(1)}%`);
-      logger.debug(`Bass/Treble Tone: ${equalizerSettings.bassTone}/${equalizerSettings.trebleTone}dB, Total Positive Gain: ${totalPositiveGain.toFixed(1)}dB`);
+      logger.debug(`Bass/Treble Tone: ${settings.bassTone}/${settings.trebleTone}dB, Total Positive Gain: ${totalPositiveGain.toFixed(1)}dB`);
     } catch (error) {
       logger.error('Failed to update EQ:', error);
     }
-  }, [equalizerSettings]);
+  };
+
+  // This effect runs whenever equalizerSettings changes AND persistence has loaded
+  useEffect(() => {
+    if (!isEqualizerLoaded || !isChainReady) return;
+    const chain = audioChainRef.current;
+    if (!chain) return;
+    applyEqualizerSettingsToChain(chain, equalizerSettings);
+  }, [equalizerSettings, isEqualizerLoaded, isChainReady]);
 
   // Auto-load and play when track changes
   useEffect(() => {

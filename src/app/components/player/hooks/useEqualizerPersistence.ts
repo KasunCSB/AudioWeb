@@ -40,22 +40,26 @@ export const useEqualizerPersistence = (shouldInit: boolean = false) => {
         setSettings(parsed);
         logger.info('Equalizer settings loaded from localStorage:', parsed.preset);
       } else {
-        // Fresh user: persist the defaults now that UI is ready
-        setSettings(defaultSettings);
+        // Fresh user: don't overwrite in-memory settings the user may have
+        // already changed. If the current in-memory settings differ from
+        // the defaults, persist those instead of clobbering them with the
+        // defaults. This allows users to tweak EQ before playback and have
+        // their changes actually take effect when the chain initializes.
+        const hasUserChangedSettings = JSON.stringify(settings) !== JSON.stringify(defaultSettings);
+        const toSave = hasUserChangedSettings ? settings : defaultSettings;
         try {
-          localStorage.setItem(STORAGE_KEYS.EQUALIZER_SETTINGS, JSON.stringify(defaultSettings));
-          logger.debug('No stored equalizer settings found; saved defaults to localStorage');
+          localStorage.setItem(STORAGE_KEYS.EQUALIZER_SETTINGS, JSON.stringify(toSave));
+          logger.debug('No stored equalizer settings found; saved initial settings to localStorage');
         } catch (err) {
-          logger.error('Failed to save default equalizer settings:', err);
+          logger.error('Failed to save initial equalizer settings:', err);
         }
       }
     } catch (error) {
       logger.error('Failed to initialize equalizer settings from localStorage:', error);
-      setSettings(defaultSettings);
     } finally {
       setIsLoaded(true);
     }
-  }, [shouldInit, isLoaded]);
+  }, [shouldInit, isLoaded, settings]);
 
   // Save settings to localStorage whenever they change — but only after init
   useEffect(() => {

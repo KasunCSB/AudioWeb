@@ -221,7 +221,15 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
   }, []);
 
   // Load volume from localStorage on mount
+  // Deferred volume persistence: only load/save after the player UI is
+  // visible and at least one track is present. This avoids early
+  // localStorage access and preserves user changes made before init.
+  const [isVolumeLoaded, setIsVolumeLoaded] = useState(false);
+
   useEffect(() => {
+    const shouldInit = isVisible && playlist.length > 0;
+    if (!shouldInit || isVolumeLoaded) return;
+
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.VOLUME);
       if (stored !== null) {
@@ -229,16 +237,27 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
         if (!Number.isNaN(parsed)) {
           setVolume(parsed);
         }
+      } else {
+        // Fresh user: if user already changed the in-memory volume before
+        // init, persist that value instead of overwriting with the default.
+        const hasUserChanged = volume !== UI_CONFIG.VOLUME.DEFAULT;
+        const toSave = hasUserChanged ? volume : UI_CONFIG.VOLUME.DEFAULT;
+        try {
+          localStorage.setItem(STORAGE_KEYS.VOLUME, String(toSave));
+        } catch {}
       }
     } catch {}
-  }, []);
 
-  // Persist volume to localStorage whenever it changes
+    setIsVolumeLoaded(true);
+  }, [isVisible, playlist.length, volume, isVolumeLoaded]);
+
+  // Persist volume changes only after initial load/save has occurred
   useEffect(() => {
+    if (!isVolumeLoaded) return;
     try {
       localStorage.setItem(STORAGE_KEYS.VOLUME, String(volume));
     } catch {}
-  }, [volume]);
+  }, [volume, isVolumeLoaded]);
 
   // Custom hooks
   const { audioRef, handlePlayPause, handleSeek } = useAudioManager(

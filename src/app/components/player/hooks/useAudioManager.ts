@@ -37,6 +37,14 @@ interface AudioChain {
   parallelMakeupGain?: GainNode;      // makeup gain after parallel compression
   parallelSaturator?: WaveShaperNode; // subtle saturation on parallel low band
   parallelLimiter?: DynamicsCompressorNode; // limiter for the parallel path
+  // Very-low-frequency (sub-bass) parallel path for extra sustain/vibration
+  subLowFilter?: BiquadFilterNode;      // bandpass for sub-bass (20-40Hz)
+  subLowLowpass?: BiquadFilterNode;     // lowpass to isolate sub region
+  subCompressor?: DynamicsCompressorNode; // compressor for sub-bass sustain
+  subMakeupGain?: GainNode;             // makeup gain after sub compression
+  subSaturator?: WaveShaperNode;        // saturation for sub-bass harmonics
+  subLimiter?: DynamicsCompressorNode;  // limiter for sub-bass path
+  subGain?: GainNode;                   // final blend gain for sub-bass
   
   // Spatial Stage
   stereoWidener: GainNode;             // Stereo width control (placeholder for future stereo processing)
@@ -277,8 +285,8 @@ export const useAudioManager = (
   parallelCompressor.threshold.value = -18; // engage earlier on low peaks
   parallelCompressor.knee.value = 10;       // smoother knee to reduce pumping
   parallelCompressor.ratio.value = 6;       // moderate-strong compression to avoid pumping
-  parallelCompressor.attack.value = 0.005;  // faster attack (~5ms) for more punch while keeping some transient
-  parallelCompressor.release.value = 0.7;   // longer release (~700ms) for sustained body
+  parallelCompressor.attack.value = 0.002;  // faster attack (~2ms) for sharper transient punch
+  parallelCompressor.release.value = 1.6;   // longer release (~1600ms) for extended sustain
 
   // Gain to mix compressed low band back into the chain
   const parallelGain = audioContext.createGain();
@@ -286,8 +294,8 @@ export const useAudioManager = (
 
   // Makeup gain to raise level of compressed low band before mixing
   const parallelMakeupGain = audioContext.createGain();
-  // Raise makeup gain to give more audible weight to the compressed low band
-  parallelMakeupGain.gain.value = 1.8; // default boost, still limited by downstream limiter and master
+  // Raise makeup gain to give more audible weight to the compressed low band (careful increase)
+  parallelMakeupGain.gain.value = 4.0; // stronger default boost; limited by downstream limiter and master
 
   // Soft saturation (waveshaper) on the parallel path to create harmonics and perceived loudness
   const parallelSaturator = audioContext.createWaveShaper();
@@ -302,7 +310,8 @@ export const useAudioManager = (
     return curve;
   };
   // Increase saturation for stronger perceived vibration on headphones and small drivers
-  parallelSaturator.curve = makeTanhCurve(12); // stronger yet still musical
+  // Increase saturator strength for greater perceived vibration on headphones
+  parallelSaturator.curve = makeTanhCurve(24); // stronger saturation for richer harmonics
   parallelSaturator.oversample = '4x';
 
   // Limiter on the parallel path to prevent extreme peaks from lifting master dynamics
@@ -312,6 +321,48 @@ export const useAudioManager = (
   parallelLimiter.ratio.value = 20;
   parallelLimiter.attack.value = 0.002;
   parallelLimiter.release.value = 0.1;
+
+  // ===== SUB-BASS (VERY-LOW) PARALLEL PATH =====
+  // Dedicated sub-bass bandpass (20-40Hz) for very deep sustained vibration
+  const subLowFilter = audioContext.createBiquadFilter();
+  subLowFilter.type = 'bandpass';
+  subLowFilter.frequency.value = 28; // center low to emphasize 20-40Hz
+  subLowFilter.Q.value = 1.8;
+
+  // Lowpass to strictly limit this path to the sub region
+  const subLowLowpass = audioContext.createBiquadFilter();
+  subLowLowpass.type = 'lowpass';
+  subLowLowpass.frequency.value = 60; // allow up to ~60Hz but attenuate mids
+  subLowLowpass.Q.value = 0.707;
+
+  // Compressor specialized for sub-bass sustain
+  const subCompressor = audioContext.createDynamicsCompressor();
+  subCompressor.threshold.value = -20;
+  subCompressor.knee.value = 6;
+  subCompressor.ratio.value = 8;
+  subCompressor.attack.value = 0.002; // faster attack to catch and shape sub transients
+  subCompressor.release.value = 2.4;  // much longer release for extended sustain (2.4s)
+
+  // Makeup gain for sub-bass
+  const subMakeupGain = audioContext.createGain();
+  subMakeupGain.gain.value = 4.0; // stronger default boost for heavier sub presence
+
+  // Sub-bass saturator to create perceivable harmonics on headphones
+  const subSaturator = audioContext.createWaveShaper();
+  subSaturator.curve = makeTanhCurve(28); // stronger sub saturation for deep vibration
+  subSaturator.oversample = '4x';
+
+  // Limiter for sub-bass path
+  const subLimiter = audioContext.createDynamicsCompressor();
+  subLimiter.threshold.value = -6;
+  subLimiter.knee.value = 0;
+  subLimiter.ratio.value = 20;
+  subLimiter.attack.value = 0.002;
+  subLimiter.release.value = 0.1;
+
+  // Blend gain for sub-bass path
+  const subGain = audioContext.createGain();
+  subGain.gain.value = 0; // off by default
         
         // ===== CONNECT THE COMPLETE SIGNAL CHAIN =====
         // AudioSource → Input Gain → High-Pass Filter → 10-Band EQ → Analyser →
@@ -349,6 +400,16 @@ export const useAudioManager = (
   // Feed limiter output to the blend gain (no feedback loop)
   parallelLimiter.connect(parallelGain);
   parallelGain.connect(reverbMix); // add compressed low band before limiter
+
+  // Also feed the dedicated sub-bass parallel path from stereoWidener
+  stereoWidener.connect(subLowFilter);
+  subLowFilter.connect(subLowLowpass);
+  subLowLowpass.connect(subCompressor);
+  subCompressor.connect(subMakeupGain);
+  subMakeupGain.connect(subSaturator);
+  subSaturator.connect(subLimiter);
+  subLimiter.connect(subGain);
+  subGain.connect(reverbMix); // mix sub-bass compressed/saturated content before limiter
         // Reverb is currently disabled (null) - can be enabled later with impulse response
         // if (reverb) {
         //   stereoWidener.connect(reverb);
@@ -381,6 +442,13 @@ export const useAudioManager = (
           parallelSaturator,
           parallelLimiter,
           parallelGain,
+          subLowFilter,
+          subLowLowpass,
+          subCompressor,
+          subMakeupGain,
+          subSaturator,
+          subLimiter,
+          subGain,
           stereoWidener,
           reverb,
           reverbDryGain,
@@ -464,21 +532,50 @@ export const useAudioManager = (
               // Bass punch peaking filter gain (surgical punch)
               // Increase scale and headroom slightly for a deeper, more audible punch
               // Increase transient peaking scale to emphasize the attack/thump
-              const bassPunchGain = Math.max(0, Math.min(18, lowEnergy * 1.0)); // scale and clamp to 18dB max
+              // Use a slightly compressive mapping so high lowEnergy doesn't explode gain; keep control while increasing impact
+              const bassPunchGain = Math.max(0, Math.min(22, Math.pow(Math.max(0, lowEnergy), 0.9) * 1.2)); // compressive scaling, slightly higher clamp
               if (chain.bassPunchFilter) {
                 chain.bassPunchFilter.gain.cancelScheduledValues(now);
                 chain.bassPunchFilter.gain.setValueAtTime(chain.bassPunchFilter.gain.value, now);
                 // Faster ramp for immediate impact
-                chain.bassPunchFilter.gain.linearRampToValueAtTime(bassPunchGain, now + 0.02);
+                chain.bassPunchFilter.gain.linearRampToValueAtTime(bassPunchGain, now + 0.015);
               }
 
               // Parallel compressed low band mix - provides long, sustained punch
-              // Conservative scaling and clamp to avoid raising mids and triggering global loudness
-              const parallelMix = Math.max(0, Math.min(1.0, (lowEnergy / 24) * 0.9)); // normalized mix 0..1.0
+              // Slightly more responsive scaling to make the effect more audible while clamped to 1.0
+              const parallelMix = Math.max(0, Math.min(1.0, (lowEnergy / 20) * 1.0)); // normalized mix 0..1.0
               if (chain.parallelGain) {
                 chain.parallelGain.gain.cancelScheduledValues(now);
                 chain.parallelGain.gain.setValueAtTime(chain.parallelGain.gain.value, now);
                 chain.parallelGain.gain.linearRampToValueAtTime(parallelMix, now + 0.08);
+              }
+
+              // Ramp makeup gain proportionally but conservatively so the compressed band increases perceived loudness
+              // Allow a larger makeup headroom for stronger sustain, but clamp to avoid runaway levels
+              const makeupTarget = Math.max(1.0, Math.min(4.5, 1.0 + parallelMix * 2.0));
+              if (chain.parallelMakeupGain) {
+                chain.parallelMakeupGain.gain.cancelScheduledValues(now);
+                chain.parallelMakeupGain.gain.setValueAtTime(chain.parallelMakeupGain.gain.value, now);
+                chain.parallelMakeupGain.gain.linearRampToValueAtTime(makeupTarget, now + 0.12);
+              }
+
+              // --- Sub-bass parallel path dynamic control ---
+              // Focus on 32Hz band and bassTone to drive very-low-frequency sustain
+              const subBand32 = band32; // primary contributor for sub-bass
+              const subLowEnergy = Math.max(0, subBand32 + (targetBassTone * 0.8));
+              // Mix for sub-bass path (0..1.0)
+              const subMix = Math.max(0, Math.min(1.0, (subLowEnergy / 20) * 1.0));
+              if (chain.subGain) {
+                chain.subGain.gain.cancelScheduledValues(now);
+                chain.subGain.gain.setValueAtTime(chain.subGain.gain.value, now);
+                chain.subGain.gain.linearRampToValueAtTime(subMix, now + 0.12);
+              }
+              // Makeup gain for sub-bass: more headroom for long sustain, clamped
+              const subMakeupTarget = Math.max(1.0, Math.min(6.0, 1.0 + subMix * 3.0));
+              if (chain.subMakeupGain) {
+                chain.subMakeupGain.gain.cancelScheduledValues(now);
+                chain.subMakeupGain.gain.setValueAtTime(chain.subMakeupGain.gain.value, now);
+                chain.subMakeupGain.gain.linearRampToValueAtTime(subMakeupTarget, now + 0.15);
               }
 
               // Apply loudness normalization based on preset

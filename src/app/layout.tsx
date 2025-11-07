@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AudioWeb Music Player - Play Audio Files Online",
+  title: "AudioWeb - Play Audio Files Online",
   description: "A modern web-based music player for playing your favorite audio files directly in your browser. Supports multiple audio formats with an intuitive interface.",
   keywords: ["music player", "web audio player", "audio player", "music streaming", "browser music player", "online music player", "mp3 player"],
   authors: [{ name: "Kasun Chanaka" }],
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    title: "AudioWeb Music Player",
+  title: "AudioWeb",
     description: "A modern web-based music player for playing your favorite audio files directly in your browser.",
     siteName: "AudioWeb",
     url: "https://audioweb.vercel.app",
@@ -43,13 +43,13 @@ export const metadata: Metadata = {
         url: "https://audioweb.vercel.app/images/aw-banner.png",
         width: 1280,
         height: 720,
-        alt: "AudioWeb Music Player Logo",
+  alt: "AudioWeb Logo",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AudioWeb Music Player",
+  title: "AudioWeb",
     description: "A modern web-based music player for playing your favorite audio files directly in your browser.",
     images: ["https://audioweb.vercel.app/images/aw-banner.png"],
   },

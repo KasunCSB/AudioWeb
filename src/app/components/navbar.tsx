@@ -96,7 +96,7 @@ const Navbar: React.FC<NavbarProps> = ({
         </span>
         <span className={showNowPlaying && currentTrack ? 'hidden md:block' : ''}>
           <h1 className="text-base md:text-xl font-medium text-white tracking-tight select-none m-0">
-            AudioWeb Music Player
+            AudioWeb
           </h1>
         </span>
       </div>

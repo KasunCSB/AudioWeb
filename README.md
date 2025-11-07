@@ -3,7 +3,7 @@
   <h1>AudioWeb Music Player</h1>
 </div>
 
-![AudioWeb](https://img.shields.io/badge/AudioWeb-v5.0.0-blue)
+![AudioWeb](https://img.shields.io/badge/AudioWeb-v6.0.0-blue)
 ![Next.js](https://img.shields.io/badge/Next.js-16.0.1-black)
 ![React](https://img.shields.io/badge/React-19.0.0-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
@@ -22,7 +22,7 @@ A modern, feature-rich web-based audio player built with Next.js, React, and Typ
 - **Crossfade & Gapless Playback** - Smooth transitions between tracks
 
 ### 🎛️ Advanced Controls
-- **7-Band Equalizer** - Fine-tune your audio with presets and custom settings
+- **10-Band Equalizer** - Fine-tune your audio with presets and custom settings
 - **Sleep Timer** - Auto-stop playback after specified time
 - **Volume Control** - Precise volume adjustment with visual feedback
 - **Progress Seeking** - Click to jump to any position in the track
@@ -121,7 +121,7 @@ audioweb/
 
 ### Advanced Features
 - **Shuffle**: Click the shuffle button to enable random playback
-- **Equalizer**: Access the 7-band equalizer for audio customization
+- **Equalizer**: Access the 10-band parametric equalizer and presets for detailed tonal shaping
 - **Sleep Timer**: Set a timer to automatically stop playback
 - **Lyrics**: Upload .lrc files alongside audio for synchronized lyrics
 

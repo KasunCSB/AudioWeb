@@ -20,7 +20,7 @@ import { BackButton } from './BackButton';
 import { LottieAnimation } from './LottieAnimation';
 import { LyricsDisplay } from './LyricsDisplay';
 import { PlayerStyles } from './PlayerStyles';
-import { getFileInputAcceptAttribute } from '@/utils/audioUtils';
+import { getFileInputAcceptAttribute, revokeAllObjectURLs, revokeObjectURL } from '@/utils/audioUtils';
 import { UI_CONFIG, STORAGE_KEYS } from '@/config/constants';
 
 const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = false, onPlayingChange, onTrackChange, onSleepTimerChange }) => {
@@ -57,12 +57,19 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
 
   // Notify parent component when track changes
   useEffect(() => {
-    if (onTrackChange && playlist.length > 0) {
-      const current = playlist[currentTrackIndex] || null;
-      const nextIndex = currentTrackIndex < playlist.length - 1 ? currentTrackIndex + 1 : (repeatMode === 1 ? 0 : -1);
-      const next = nextIndex >= 0 ? playlist[nextIndex] : null;
-      onTrackChange(current, next);
+    if (!onTrackChange) return;
+
+    // If the playlist is empty, notify parent to clear current/next track
+    if (playlist.length === 0) {
+      onTrackChange(null, null);
+      return;
     }
+
+    // Normal behavior: notify parent of current and next tracks
+    const current = playlist[currentTrackIndex] || null;
+    const nextIndex = currentTrackIndex < playlist.length - 1 ? currentTrackIndex + 1 : (repeatMode === 1 ? 0 : -1);
+    const next = nextIndex >= 0 ? playlist[nextIndex] : null;
+    onTrackChange(current, next);
   }, [currentTrackIndex, playlist, repeatMode, onTrackChange]);
 
   // Notify parent component when sleep timer changes
@@ -166,20 +173,44 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
 
   const removeTrack = useCallback((indexToRemove: number) => {
     setPlaylist(prev => {
+      const removed = prev[indexToRemove];
       const updated = prev.filter((_, index) => index !== indexToRemove);
-      
-      // Adjust current track index
+
+      // Revoke object URL for removed track if tracked
+      try {
+        if (removed && typeof removed.url === 'string' && removed.url.startsWith('blob:')) {
+          revokeObjectURL(removed.url);
+        }
+      } catch {}
+
+      // Determine new current index after removal
+      let newIndex = currentTrackIndex;
       if (indexToRemove < currentTrackIndex) {
-        setCurrentTrackIndex(currentTrackIndex - 1);
+        newIndex = currentTrackIndex - 1;
       } else if (indexToRemove === currentTrackIndex) {
-        const newIndex = Math.min(indexToRemove, updated.length - 1);
-        setCurrentTrackIndex(Math.max(0, newIndex));
-        setIsPlaying(false);
-        setCurrentTime(0);
+        // If we removed the currently playing track, move to the next available index
+        newIndex = Math.min(indexToRemove, Math.max(0, updated.length - 1));
       }
-      
-      return updated;
+
+      // Ensure index bounds
+      newIndex = Math.max(0, Math.min(newIndex, Math.max(0, updated.length - 1)));
+
+      // Update current track index and isActive flags
+      setCurrentTrackIndex(newIndex);
+      setCurrentTime(0);
+
+      // If there are remaining tracks, mark the new current as active
+      if (updated.length > 0) {
+        const normalized = updated.map((track, idx) => ({ ...track, isActive: idx === newIndex }));
+        return normalized;
+      }
+
+      // No tracks left
+      return [];
     });
+    // Preserve playback state: if playlist had a playing track and user removed it, keep isPlaying true so
+    // the audio manager effect will load/play the new index. If playlist becomes empty, other effects will
+    // handle stopping and clearing audio.
   }, [currentTrackIndex]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -220,6 +251,28 @@ const Player: React.FC<PlayerProps> = ({ isVisible = true, onClose, asPage = fal
     handleNext,
     equalizerSettings
   );
+
+  // If the playlist becomes empty while playback is active, ensure audio actually stops
+  useEffect(() => {
+    if (playlist.length === 0) {
+      const audio = audioRef.current;
+      // Pause and clear source to make sure playback fully stops
+      if (audio) {
+        try {
+          if (!audio.paused) audio.pause();
+          // Remove src attribute + load to avoid firing spurious MEDIA_ERR_SRC_NOT_SUPPORTED
+          // and revoke any tracked object URLs to release blobs
+          audio.removeAttribute('src');
+          audio.load();
+          try { revokeAllObjectURLs(); } catch {}
+        } catch {
+          // ignore
+        }
+      }
+      if (isPlaying) setIsPlaying(false);
+      setCurrentTime(0);
+    }
+  }, [playlist.length, audioRef, isPlaying, setIsPlaying, setCurrentTime]);
 
   const { popupPositions, handleMouseDown } = useDragHandler();
 

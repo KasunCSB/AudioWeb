@@ -2,6 +2,8 @@
 
 import React from 'react';
 import Image from 'next/image';
+// Import project version from package.json
+import pkg from '../../../package.json';
 
 interface AboutPopupProps {
   show: boolean;
@@ -42,7 +44,7 @@ const Logo: React.FC<{ isPlaying?: boolean }> = ({ isPlaying = false }) => {
   };
 
   return (
-    <div className="w-24 h-24 mx-auto mb-6 relative">
+  <div className="w-24 h-24 mx-auto mt-3 mb-10 relative" style={{ transform: 'translateY(5%)' }}>
       {/* Animated visualization when playing */}
       {showAnimations && (
         <>
@@ -195,9 +197,17 @@ export const AboutPopup: React.FC<AboutPopupProps> = ({ show, onClose, isPlaying
         </button>
 
         {/* Content */}
-        <div className="text-center space-y-6">
+        <div className="text-center space-y-5">
           {/* Logo */}
           <Logo isPlaying={isPlaying} />
+
+            {/* Main Title + Version (slightly increased gap) */}
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold text-white">AudioWeb Music Player</h2>
+              <div>
+                <span className="block text-[11px] text-white/60">version {pkg.version}</span>
+              </div>
+            </div>
 
           {/* Copyright */}
           <div className="flex items-center justify-center gap-2 text-white/80">
